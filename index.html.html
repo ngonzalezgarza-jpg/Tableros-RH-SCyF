@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuizBlast 🎯</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, push, onValue, update, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ─── FIREBASE CONFIG ───────────────────────────────────────────────────────
+  // 🔧 INSTRUCCIONES: Reemplaza con tu config de Firebase (ver instrucciones abajo)
+  const firebaseConfig = {
+    apiKey: "AIzaSyA8yD_kAzCfKnGZ8gOso0XpJZuHP9TSUu8",
+    authDomain: "townhall-rh.firebaseapp.com",
+    databaseURL: "https://townhall-rh-default-rtdb.firebaseio.com",
+    projectId: "townhall-rh",
+    storageBucket: "townhall-rh.firebasestorage.app",
+    messagingSenderId: "85575895048",
+    appId: "1:85575895048:web:2d407c6f2544f67636e9bd"
+  };
+
+  let app, db;
+  let currentRoom = null;
+  let playerName = null;
+  let isHost = false;
+  let questionTimer = null;
+  let answerStartTime = null;
+  let currentQuestionIndex = 0;
+  let myAnswered = false;
+
+  function initFirebase(config) {
+    try {
+      app = initializeApp(config);
+      db = getDatabase(app);
+      return true;
+    } catch(e) {
+      return false;
+    }
+  }
+
+  // ─── UTILITIES ─────────────────────────────────────────────────────────────
+  function generateRoomCode() {
+    return Math.random().toString(36).substring(2,8).toUpperCase();
+  }
+
+  function getScoreForTime(timeLeft, totalTime) {
+    const fraction = timeLeft / totalTime;
+    return Math.round(1000 * fraction) + 200;
+  }
+
+  // ─── VIEWS ─────────────────────────────────────────────────────────────────
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  // ─── SETUP SCREEN ──────────────────────────────────────────────────────────
+  window.openSetup = function() {
+    const cfg = localStorage.getItem('fbConfig');
+    if (cfg) {
+      document.getElementById('fbConfigInput').value = cfg;
+    }
+    showView('setupView');
+  }
+
+  window.saveConfig = function() {
+    const raw = document.getElementById('fbConfigInput').value.trim();
+    try {
+      // Extract JSON from firebaseConfig = { ... }
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('No JSON found');
+      const config = JSON.parse(match[0].replace(/(\w+):/g, '"$1":').replace(/'/g, '"'));
+      localStorage.setItem('fbConfig', raw);
+      if (initFirebase(config)) {
+        showStatus('✅ Firebase conectado correctamente', 'success');
+        setTimeout(() => showView('homeView'), 1500);
+      } else {
+        showStatus('❌ Error al conectar. Verifica tu config.', 'error');
+      }
+    } catch(e) {
+      // Try direct JSON parse
+      try {
+        const config = JSON.parse(raw);
+        localStorage.setItem('fbConfig', raw);
+        if (initFirebase(config)) {
+          showStatus('✅ Firebase conectado', 'success');
+          setTimeout(() => showView('homeView'), 1500);
+        }
+      } catch(e2) {
+        showStatus('❌ Formato inválido. Pega el objeto completo de Firebase.', 'error');
+      }
+    }
+  }
+
+  function showStatus(msg, type) {
+    const el = document.getElementById('setupStatus');
+    el.textContent = msg;
+    el.className = 'status-msg ' + type;
+  }
+
+  // ─── HOST: CREATE ROOM ──────────────────────────────────────────────────────
+  window.createRoom = async function() {
+    if (!db) { alert('Primero configura Firebase'); openSetup(); return; }
+    const code = generateRoomCode();
+    const hostName = document.getElementById('hostName').value.trim() || 'Host';
+    
+    const roomData = {
+      host: hostName,
+      code: code,
+      status: 'lobby',
+      currentQuestion: -1,
+      players: {},
+      questions: [],
+      createdAt: Date.now()
+    };
+
+    await set(ref(db, `rooms/${code}`), roomData);
+    currentRoom = code;
+    isHost = true;
+    playerName = hostName;
+
+    document.getElementById('roomCodeDisplay').textContent = code;
+    showView('hostLobbyView');
+    listenRoomAsHost(code);
+  }
+
+  // ─── QUESTION SETS (localStorage) ──────────────────────────────────────────
+  let questions = [];
+  let currentSetName = '';
+
+  function getSets() {
+    return JSON.parse(localStorage.getItem('quizblast_sets') || '{}');
+  }
+  function saveSets(sets) {
+    localStorage.setItem('quizblast_sets', JSON.stringify(sets));
+  }
+
+  window.openSetsModal = function() {
+    renderSetsModal();
+    document.getElementById('setsModal').style.display = 'flex';
+  }
+  window.closeSetsModal = function() {
+    document.getElementById('setsModal').style.display = 'none';
+  }
+
+  function renderSetsModal() {
+    const sets = getSets();
+    const names = Object.keys(sets);
+    const container = document.getElementById('setsList');
+    if (names.length === 0) {
+      container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px">No tienes sets guardados aún</p>';
+      return;
+    }
+    container.innerHTML = names.map(name => `
+      <div class="set-item">
+        <div>
+          <strong>${name}</strong>
+          <span style="color:var(--muted);font-size:0.85rem;margin-left:8px">${sets[name].length} preguntas</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-load" onclick="loadSet('${name}')">📂 Cargar</button>
+          <button class="btn-remove" onclick="deleteSet('${name}')">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  window.loadSet = function(name) {
+    const sets = getSets();
+    questions = [...sets[name]];
+    currentSetName = name;
+    document.getElementById('currentSetName').textContent = '📂 ' + name;
+    renderQuestionList();
+    closeSetsModal();
+  }
+
+  window.deleteSet = function(name) {
+    if (!confirm('¿Eliminar el set "' + name + '"?')) return;
+    const sets = getSets();
+    delete sets[name];
+    saveSets(sets);
+    renderSetsModal();
+  }
+
+  window.saveAsNewSet = function() {
+    if (questions.length === 0) { alert('Agrega preguntas primero'); return; }
+    const name = document.getElementById('newSetName').value.trim();
+    if (!name) { alert('Escribe un nombre para el set'); return; }
+    const sets = getSets();
+    sets[name] = [...questions];
+    saveSets(sets);
+    currentSetName = name;
+    document.getElementById('currentSetName').textContent = '📂 ' + name;
+    document.getElementById('newSetName').value = '';
+    alert('✅ Set "' + name + '" guardado con ' + questions.length + ' preguntas');
+    renderSetsModal();
+  }
+
+  window.updateCurrentSet = function() {
+    if (!currentSetName) { alert('Primero carga o guarda un set con nombre'); return; }
+    if (questions.length === 0) { alert('No hay preguntas para guardar'); return; }
+    const sets = getSets();
+    sets[currentSetName] = [...questions];
+    saveSets(sets);
+    const btn = document.getElementById('updateSetBtn');
+    btn.textContent = '✅ Actualizado';
+    setTimeout(() => btn.textContent = '💾 Actualizar set', 2000);
+  }
+
+  // ─── HOST: ADD QUESTIONS ────────────────────────────────────────────────────
+  window.addQuestion = function() {
+    const q = document.getElementById('qText').value.trim();
+    const a = document.getElementById('qA').value.trim();
+    const b = document.getElementById('qB').value.trim();
+    const c = document.getElementById('qC').value.trim();
+    const d = document.getElementById('qD').value.trim();
+    const correct = document.getElementById('qCorrect').value;
+    const time = parseInt(document.getElementById('qTime').value) || 20;
+
+    if (!q || !a || !b || !c || !d) { alert('Completa todos los campos'); return; }
+
+    questions.push({ question: q, options: [a,b,c,d], correct: parseInt(correct), time });
+    renderQuestionList();
+    clearQForm();
+  }
+
+  function clearQForm() {
+    ['qText','qA','qB','qC','qD'].forEach(id => document.getElementById(id).value = '');
+  }
+
+  function renderQuestionList() {
+    const list = document.getElementById('questionList');
+    const labels = ['A','B','C','D'];
+    list.innerHTML = questions.map((q,i) => `
+      <div class="q-item" id="qitem-${i}">
+        <span class="q-num">${i+1}</span>
+        <div style="flex:1">
+          <div class="q-text">${q.question}</div>
+          <div style="font-size:0.78rem;color:var(--muted);margin-top:2px">
+            ${q.options.map((o,j) => `<span style="margin-right:8px;${j===q.correct?'color:#2ecc71;font-weight:700':''}">${labels[j]}: ${o}</span>`).join('')}
+            <span style="color:var(--accent2)">⏱ ${q.time}s</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="editQuestion(${i})" class="btn-edit">✏️</button>
+          <button onclick="removeQuestion(${i})" class="btn-remove">✕</button>
+        </div>
+      </div>
+    `).join('');
+    document.getElementById('qCount').textContent = questions.length;
+  }
+
+  window.editQuestion = function(i) {
+    const q = questions[i];
+    document.getElementById('editIdx').value = i;
+    document.getElementById('eqText').value = q.question;
+    document.getElementById('eqA').value = q.options[0];
+    document.getElementById('eqB').value = q.options[1];
+    document.getElementById('eqC').value = q.options[2];
+    document.getElementById('eqD').value = q.options[3];
+    document.getElementById('eqCorrect').value = q.correct;
+    document.getElementById('eqTime').value = q.time;
+    document.getElementById('editModal').style.display = 'flex';
+  }
+
+  window.closeEditModal = function() {
+    document.getElementById('editModal').style.display = 'none';
+  }
+
+  window.saveEditQuestion = function() {
+    const i = parseInt(document.getElementById('editIdx').value);
+    const q = document.getElementById('eqText').value.trim();
+    const a = document.getElementById('eqA').value.trim();
+    const b = document.getElementById('eqB').value.trim();
+    const c = document.getElementById('eqC').value.trim();
+    const d = document.getElementById('eqD').value.trim();
+    const correct = parseInt(document.getElementById('eqCorrect').value);
+    const time = parseInt(document.getElementById('eqTime').value) || 20;
+    if (!q||!a||!b||!c||!d) { alert('Completa todos los campos'); return; }
+    questions[i] = { question: q, options: [a,b,c,d], correct, time };
+    renderQuestionList();
+    closeEditModal();
+  }
+
+  window.removeQuestion = function(i) {
+    questions.splice(i,1);
+    renderQuestionList();
+  }
+
+  window.saveQuestions = async function() {
+    if (questions.length === 0) { alert('Agrega al menos una pregunta'); return; }
+    await update(ref(db, `rooms/${currentRoom}`), { questions });
+    document.getElementById('saveQBtn').textContent = '✅ ' + questions.length + ' preguntas listas';
+    setTimeout(() => document.getElementById('saveQBtn').textContent = 'Enviar al juego', 2000);
+  }
+
+  // ─── HOST: LOBBY LISTENER ───────────────────────────────────────────────────
+  function listenRoomAsHost(code) {
+    onValue(ref(db, `rooms/${code}/players`), snap => {
+      const players = snap.val() || {};
+      const list = document.getElementById('playerList');
+      const names = Object.values(players).map(p => p.name);
+      list.innerHTML = names.map(n => `<div class="player-chip">👤 ${n}</div>`).join('');
+      document.getElementById('playerCount').textContent = names.length;
+    });
+
+    onValue(ref(db, `rooms/${code}/status`), snap => {
+      const status = snap.val();
+      if (status === 'question') handleHostQuestion();
+      if (status === 'results') handleHostResults();
+      if (status === 'finished') handleHostFinished();
+    });
+  }
+
+  // ─── HOST: START GAME ───────────────────────────────────────────────────────
+  window.startGame = async function() {
+    if (questions.length === 0) { alert('Agrega y guarda preguntas primero'); return; }
+    await update(ref(db, `rooms/${currentRoom}`), { questions, status: 'starting', currentQuestion: 0 });
+    currentQuestionIndex = 0;
+    await showQuestion(0);
+  }
+
+  async function showQuestion(idx) {
+    const q = questions[idx];
+    await update(ref(db, `rooms/${currentRoom}`), {
+      status: 'question',
+      currentQuestion: idx,
+      questionStartTime: Date.now(),
+      answers: null
+    });
+    showView('hostQuestionView');
+    renderHostQuestion(q, idx);
+    startHostTimer(q.time, idx);
+  }
+
+  function renderHostQuestion(q, idx) {
+    document.getElementById('hostQNum').textContent = `Pregunta ${idx+1} / ${questions.length}`;
+    document.getElementById('hostQText').textContent = q.question;
+    const labels = ['A','B','C','D'];
+    const colors = ['#e74c3c','#3498db','#f39c12','#27ae60'];
+    document.getElementById('hostOptions').innerHTML = q.options.map((opt,i) => `
+      <div class="host-option" style="background:${colors[i]}">
+        <span class="opt-letter">${labels[i]}</span>
+        <span class="opt-text">${opt}</span>
+      </div>
+    `).join('');
+    document.getElementById('hostAnswerCount').textContent = '0';
+  }
+
+  function startHostTimer(seconds, idx) {
+    let left = seconds;
+    const bar = document.getElementById('timerBar');
+    const num = document.getElementById('timerNum');
+    bar.style.width = '100%';
+    bar.style.transition = 'none';
+
+    clearInterval(questionTimer);
+    questionTimer = setInterval(async () => {
+      left--;
+      const pct = (left / seconds) * 100;
+      bar.style.transition = 'width 1s linear';
+      bar.style.width = pct + '%';
+      num.textContent = left;
+      bar.style.background = left > 10 ? '#2ecc71' : left > 5 ? '#f39c12' : '#e74c3c';
+
+      // Update answer count
+      const snap = await get(ref(db, `rooms/${currentRoom}/answers`));
+      const answers = snap.val() || {};
+      document.getElementById('hostAnswerCount').textContent = Object.keys(answers).length;
+
+      if (left <= 0) {
+        clearInterval(questionTimer);
+        await endQuestion(idx);
+      }
+    }, 1000);
+  }
+
+  async function endQuestion(idx) {
+    const q = questions[idx];
+    const snapA = await get(ref(db, `rooms/${currentRoom}/answers`));
+    const answers = snapA.val() || {};
+    const snapP = await get(ref(db, `rooms/${currentRoom}/players`));
+    const players = snapP.val() || {};
+
+    // Award points
+    const updates = {};
+    for (const [pid, ans] of Object.entries(answers)) {
+      if (ans.option === q.correct) {
+        const bonus = getScoreForTime(ans.timeLeft, q.time);
+        const current = players[pid]?.score || 0;
+        updates[`rooms/${currentRoom}/players/${pid}/score`] = current + bonus;
+        updates[`rooms/${currentRoom}/players/${pid}/lastCorrect`] = true;
+      } else {
+        updates[`rooms/${currentRoom}/players/${pid}/lastCorrect`] = false;
+      }
+    }
+    // Mark non-answerers
+    for (const pid of Object.keys(players)) {
+      if (!answers[pid]) updates[`rooms/${currentRoom}/players/${pid}/lastCorrect`] = false;
+    }
+
+    await update(ref(db), updates);
+    await update(ref(db, `rooms/${currentRoom}`), { status: 'results', correctAnswer: q.correct });
+  }
+
+  window.nextQuestion = async function() {
+    currentQuestionIndex++;
+    if (currentQuestionIndex >= questions.length) {
+      await update(ref(db, `rooms/${currentRoom}`), { status: 'finished' });
+    } else {
+      await showQuestion(currentQuestionIndex);
+    }
+  }
+
+  // ─── HOST: RESULTS VIEW ─────────────────────────────────────────────────────
+  function handleHostResults() {
+    showView('hostResultsView');
+    onValue(ref(db, `rooms/${currentRoom}/players`), snap => {
+      const players = snap.val() || {};
+      renderLeaderboard(players, 'hostLeaderboard');
+    }, { onlyOnce: true });
+
+    const isLast = currentQuestionIndex >= questions.length - 1;
+    document.getElementById('nextQBtn').textContent = isLast ? '🏆 Ver Ganadores Finales' : '➡️ Siguiente Pregunta';
+  }
+
+  function renderLeaderboard(players, containerId) {
+    const sorted = Object.entries(players)
+      .sort(([,a],[,b]) => (b.score||0) - (a.score||0));
+    const medals = ['🥇','🥈','🥉'];
+    document.getElementById(containerId).innerHTML = sorted.map(([pid, p], i) => `
+      <div class="lb-row ${i < 3 ? 'top' : ''}" style="animation-delay:${i*0.07}s">
+        <span class="lb-rank">${medals[i] || (i+1)}</span>
+        <span class="lb-name">${p.name}</span>
+        <span class="lb-score">${p.score || 0} pts</span>
+        ${p.lastCorrect ? '<span class="correct-badge">✓</span>' : '<span class="wrong-badge">✗</span>'}
+      </div>
+    `).join('');
+  }
+
+  // ─── HOST: FINISHED ─────────────────────────────────────────────────────────
+  async function handleHostFinished() {
+    showView('hostFinishedView');
+    const snap = await get(ref(db, `rooms/${currentRoom}/players`));
+    const players = snap.val() || {};
+    renderLeaderboard(players, 'finalLeaderboard');
+
+    const sorted = Object.values(players).sort((a,b) => (b.score||0) - (a.score||0));
+    if (sorted[0]) {
+      document.getElementById('winnerName').textContent = sorted[0].name;
+      document.getElementById('winnerScore').textContent = sorted[0].score || 0;
+    }
+    launchConfetti();
+  }
+
+  window.endGame = async function() {
+    await remove(ref(db, `rooms/${currentRoom}`));
+    location.reload();
+  }
+
+  // ─── PLAYER: JOIN ───────────────────────────────────────────────────────────
+  window.joinRoom = async function() {
+    if (!db) { alert('Error: Firebase no configurado'); return; }
+    const name = document.getElementById('joinName').value.trim();
+    const code = document.getElementById('joinCode').value.trim().toUpperCase();
+    if (!name || !code) { alert('Ingresa tu nombre y código'); return; }
+
+    const snap = await get(ref(db, `rooms/${code}`));
+    if (!snap.exists()) { alert('Sala no encontrada'); return; }
+    
+    const roomData = snap.val();
+    if (roomData.status !== 'lobby') { alert('El juego ya inició'); return; }
+
+    playerName = name;
+    currentRoom = code;
+    isHost = false;
+
+    const playerRef = push(ref(db, `rooms/${code}/players`));
+    const pid = playerRef.key;
+    await set(playerRef, { name, score: 0, lastCorrect: false });
+    localStorage.setItem('pid_' + code, pid);
+
+    showView('playerLobbyView');
+    document.getElementById('playerRoomCode').textContent = code;
+    document.getElementById('playerWelcome').textContent = `¡Hola, ${name}! 👋`;
+    listenRoomAsPlayer(code, pid);
+  }
+
+  // ─── PLAYER: ROOM LISTENER ──────────────────────────────────────────────────
+  function listenRoomAsPlayer(code, pid) {
+    onValue(ref(db, `rooms/${code}/status`), snap => {
+      const status = snap.val();
+      if (status === 'question') setupPlayerQuestion(code, pid);
+      if (status === 'results') showPlayerResults(code, pid);
+      if (status === 'finished') showPlayerFinished(code);
+    });
+
+    onValue(ref(db, `rooms/${code}/players`), snap => {
+      const players = snap.val() || {};
+      const el = document.getElementById('playerCount2');
+      if (el) el.textContent = Object.keys(players).length;
+    });
+  }
+
+  let playerCurrentQ = -1;
+
+  async function setupPlayerQuestion(code, pid) {
+    const snap = await get(ref(db, `rooms/${code}`));
+    const room = snap.val();
+    const idx = room.currentQuestion;
+    if (idx === playerCurrentQ) return;
+    playerCurrentQ = idx;
+    myAnswered = false;
+
+    const q = room.questions[idx];
+    const elapsed = (Date.now() - room.questionStartTime) / 1000;
+    const timeLeft = Math.max(0, q.time - elapsed);
+    answerStartTime = Date.now() - elapsed * 1000;
+
+    showView('playerQuestionView');
+    document.getElementById('pQNum').textContent = `${idx+1} / ${room.questions.length}`;
+    document.getElementById('pQText').textContent = q.question;
+
+    const labels = ['A','B','C','D'];
+    const colors = ['#e74c3c','#3498db','#f39c12','#27ae60'];
+    document.getElementById('pOptions').innerHTML = q.options.map((opt,i) => `
+      <button class="p-option" style="background:${colors[i]}" onclick="submitAnswer(${i},'${code}','${pid}',${q.time})">
+        <span class="opt-letter">${labels[i]}</span>
+        <span class="opt-text">${opt}</span>
+      </button>
+    `).join('');
+
+    startPlayerTimer(timeLeft, q.time);
+  }
+
+  function startPlayerTimer(left, total) {
+    clearInterval(questionTimer);
+    const bar = document.getElementById('pTimerBar');
+    const num = document.getElementById('pTimerNum');
+    let current = left;
+
+    const tick = () => {
+      if (myAnswered) return;
+      current = Math.max(0, current - 0.1);
+      const pct = (current / total) * 100;
+      bar.style.width = pct + '%';
+      num.textContent = Math.ceil(current);
+      bar.style.background = current > 10 ? '#2ecc71' : current > 5 ? '#f39c12' : '#e74c3c';
+    };
+    questionTimer = setInterval(tick, 100);
+  }
+
+  window.submitAnswer = async function(option, code, pid, totalTime) {
+    if (myAnswered) return;
+    myAnswered = true;
+
+    const elapsed = (Date.now() - answerStartTime) / 1000;
+    const timeLeft = Math.max(0, totalTime - elapsed);
+
+    await set(ref(db, `rooms/${code}/answers/${pid}`), { option, timeLeft });
+
+    // Show waiting screen
+    document.getElementById('pOptions').innerHTML = `
+      <div class="waiting-answer">
+        <div class="pulse-dot"></div>
+        <p>¡Respuesta enviada! Esperando...</p>
+      </div>
+    `;
+    document.querySelectorAll('.p-option').forEach(b => b.disabled = true);
+  }
+
+  async function showPlayerResults(code, pid) {
+    const snap = await get(ref(db, `rooms/${code}`));
+    const room = snap.val();
+    const player = room.players?.[pid];
+    const correct = room.correctAnswer;
+    const myAnswer = room.answers?.[pid];
+    const q = room.questions[room.currentQuestion];
+
+    showView('playerResultView');
+
+    const wasCorrect = myAnswer?.option === correct;
+    document.getElementById('pResultIcon').textContent = wasCorrect ? '✅' : '❌';
+    document.getElementById('pResultMsg').textContent = wasCorrect ? '¡Correcto!' : 'Incorrecto';
+    document.getElementById('pResultMsg').style.color = wasCorrect ? '#2ecc71' : '#e74c3c';
+    document.getElementById('pScore').textContent = `${player?.score || 0} pts`;
+    document.getElementById('pCorrectAnswer').textContent = `Respuesta: ${q.options[correct]}`;
+
+    // Ranking
+    const players = room.players || {};
+    const sorted = Object.values(players).sort((a,b) => (b.score||0) - (a.score||0));
+    const myRank = sorted.findIndex(p => p.name === playerName) + 1;
+    document.getElementById('pRank').textContent = `#${myRank} de ${sorted.length}`;
+  }
+
+  async function showPlayerFinished(code) {
+    const snap = await get(ref(db, `rooms/${code}/players`));
+    const players = snap.val() || {};
+    const sorted = Object.values(players).sort((a,b) => (b.score||0) - (a.score||0));
+    const myRank = sorted.findIndex(p => p.name === playerName) + 1;
+    const myScore = players[Object.keys(players).find(k => players[k].name === playerName)]?.score || 0;
+
+    showView('playerFinishedView');
+    document.getElementById('pFinalRank').textContent = `#${myRank}`;
+    document.getElementById('pFinalScore').textContent = `${myScore} pts`;
+    document.getElementById('pFinalName').textContent = playerName;
+
+    const medals = ['🥇','🥈','🥉'];
+    document.getElementById('pFinalMedal').textContent = myRank <= 3 ? medals[myRank-1] : '🎮';
+
+    const lb = document.getElementById('pFinalLB');
+    lb.innerHTML = sorted.slice(0,5).map((p,i) => `
+      <div class="lb-row ${i<3?'top':''}">
+        <span class="lb-rank">${medals[i]||i+1}</span>
+        <span class="lb-name">${p.name} ${p.name===playerName?'(tú)':''}</span>
+        <span class="lb-score">${p.score||0} pts</span>
+      </div>
+    `).join('');
+
+    if (myRank === 1) launchConfetti();
+  }
+
+  // ─── HOST: RESULTS VIEW LISTENER ───────────────────────────────────────────
+  function handleHostQuestion() { /* handled by startGame flow */ }
+
+  // ─── CONFETTI ───────────────────────────────────────────────────────────────
+  function launchConfetti() {
+    const canvas = document.getElementById('confettiCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    canvas.style.display = 'block';
+
+    const pieces = Array.from({length: 120}, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * -canvas.height,
+      w: Math.random() * 10 + 5,
+      h: Math.random() * 6 + 4,
+      color: ['#f1c40f','#e74c3c','#3498db','#2ecc71','#9b59b6','#e67e22'][Math.floor(Math.random()*6)],
+      vx: (Math.random()-0.5)*3,
+      vy: Math.random()*3+2,
+      angle: Math.random()*360,
+      va: (Math.random()-0.5)*5
+    }));
+
+    let frame;
+    const draw = () => {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      pieces.forEach(p => {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle * Math.PI/180);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        ctx.restore();
+        p.x += p.vx; p.y += p.vy; p.angle += p.va;
+        if (p.y > canvas.height) { p.y = -20; p.x = Math.random()*canvas.width; }
+      });
+      frame = requestAnimationFrame(draw);
+    };
+    draw();
+    setTimeout(() => { cancelAnimationFrame(frame); canvas.style.display = 'none'; }, 5000);
+  }
+
+  // ─── AUTO INIT ──────────────────────────────────────────────────────────────
+  window.addEventListener('load', () => {
+    const saved = localStorage.getItem('fbConfig');
+    if (saved) {
+      try {
+        const match = saved.match(/\{[\s\S]*\}/);
+        const raw = match ? match[0] : saved;
+        const config = JSON.parse(raw.replace(/(\w+):/g, (m,p1) => `"${p1}":`).replace(/'/g,'"').replace(/"(\w+)":/g, (m,p1) => `"${p1}":`));
+        initFirebase(config);
+      } catch(e) {
+        try { initFirebase(JSON.parse(saved)); } catch(e2) {}
+      }
+    }
+  });
+</script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=Boogaloo&display=swap');
+
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --card: #0f3460;
+    --accent: #e94560;
+    --accent2: #f5a623;
+    --text: #eaeaea;
+    --muted: #8892b0;
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  .view { display: none; width: 100%; max-width: 700px; padding: 20px; animation: fadeIn 0.3s ease; }
+  .view.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: none; } }
+
+  h1 { font-family: 'Boogaloo', cursive; font-size: 3.5rem; text-align: center; 
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+
+  h2 { font-size: 1.5rem; font-weight: 900; margin-bottom: 16px; }
+
+  .tagline { text-align: center; color: var(--muted); margin-bottom: 32px; font-size: 1.1rem; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  input, textarea, select {
+    width: 100%; padding: 12px 16px; border-radius: 10px;
+    border: 2px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05); color: var(--text);
+    font-family: 'Nunito', sans-serif; font-size: 1rem;
+    margin-bottom: 12px; outline: none; transition: border 0.2s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+
+  button {
+    font-family: 'Nunito', sans-serif; font-size: 1rem;
+    font-weight: 700; border: none; border-radius: 10px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  button:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: var(--accent); color: #fff;
+    padding: 14px 28px; width: 100%; font-size: 1.1rem;
+    border-radius: 12px; letter-spacing: 0.5px;
+  }
+  .btn-primary:hover { filter: brightness(1.1); }
+
+  .btn-secondary {
+    background: rgba(255,255,255,0.08); color: var(--text);
+    padding: 12px 24px; border: 1px solid rgba(255,255,255,0.12);
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.12); }
+
+  .btn-success { background: #27ae60; color: #fff; padding: 14px 28px; width: 100%; font-size: 1.1rem; border-radius: 12px; }
+  .btn-remove { background: rgba(231,76,60,0.2); color: #e74c3c; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; }
+
+  .room-code {
+    font-family: 'Boogaloo', cursive; font-size: 4rem; text-align: center;
+    color: var(--accent2); letter-spacing: 8px; padding: 12px;
+    background: rgba(245,166,35,0.1); border-radius: 12px; border: 2px dashed var(--accent2);
+    margin: 16px 0;
+  }
+
+  .badge {
+    display: inline-block; padding: 4px 14px; border-radius: 20px;
+    font-size: 0.85rem; font-weight: 700; margin-right: 8px;
+  }
+  .badge-players { background: rgba(52,152,219,0.2); color: #3498db; }
+
+  .player-chip {
+    display: inline-block; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+    padding: 6px 14px; margin: 4px; font-size: 0.9rem;
+    animation: popIn 0.3s ease;
+  }
+  @keyframes popIn { from { transform:scale(0.5); opacity:0; } to { transform:scale(1); opacity:1; } }
+
+  /* Timer */
+  .timer-wrap { background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; height: 14px; margin: 12px 0; }
+  .timer-bar { height: 100%; background: #2ecc71; transition: width 1s linear, background 1s; border-radius: 10px; }
+  .timer-num { font-size: 2rem; font-weight: 900; font-family: 'Boogaloo', cursive; }
+
+  /* Host question */
+  .host-q-text {
+    font-size: 1.6rem; font-weight: 900; text-align: center;
+    margin: 16px 0; line-height: 1.3;
+  }
+  .host-options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .host-option {
+    border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px;
+    font-weight: 700; font-size: 1rem;
+  }
+  .opt-letter {
+    background: rgba(0,0,0,0.25); border-radius: 8px;
+    padding: 4px 10px; font-weight: 900; font-size: 1.1rem;
+  }
+
+  /* Player options */
+  #pOptions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .p-option {
+    border-radius: 14px; padding: 20px 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    font-weight: 700; font-size: 1rem; color: #fff; min-height: 80px;
+    transition: transform 0.1s, filter 0.1s;
+  }
+  .p-option:hover { filter: brightness(1.15); transform: scale(1.02); }
+  .p-option .opt-letter { background: rgba(0,0,0,0.25); border-radius: 8px; padding: 2px 10px; }
+  .p-option .opt-text { font-size: 0.9rem; text-align: center; }
+
+  /* Leaderboard */
+  .lb-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-radius: 10px;
+    background: rgba(255,255,255,0.04); margin-bottom: 6px;
+    animation: slideIn 0.3s ease both;
+  }
+  .lb-row.top { background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.2); }
+  @keyframes slideIn { from { transform: translateX(-20px); opacity:0; } to { transform:none; opacity:1; } }
+  .lb-rank { font-size: 1.3rem; width: 36px; text-align: center; }
+  .lb-name { flex: 1; font-weight: 700; }
+  .lb-score { font-family: 'Boogaloo', cursive; font-size: 1.2rem; color: var(--accent2); }
+  .correct-badge { color: #2ecc71; font-weight: 900; }
+  .wrong-badge { color: #e74c3c; font-weight: 900; }
+
+  /* Q list */
+  .q-item {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,0.04); border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 6px;
+  }
+  .q-num { background: var(--accent); color: #fff; border-radius: 6px; padding: 2px 8px; font-weight: 900; font-size: 0.85rem; min-width: 28px; text-align: center; }
+  .q-text { flex: 1; font-size: 0.9rem; }
+
+  /* Status */
+  .status-msg { padding: 10px 16px; border-radius: 8px; margin-top: 8px; font-weight: 700; }
+  .status-msg.success { background: rgba(46,204,113,0.15); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); }
+  .status-msg.error { background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+
+  /* Waiting */
+  .waiting-answer { text-align: center; padding: 40px; grid-column: 1/-1; }
+  .pulse-dot { width: 24px; height: 24px; background: var(--accent2); border-radius: 50%; margin: 0 auto 16px; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.4); opacity:0.6; } }
+
+  /* Winner */
+  .winner-box { text-align: center; padding: 24px; background: rgba(245,166,35,0.1); border-radius: 16px; border: 2px solid rgba(245,166,35,0.3); margin-bottom: 16px; }
+  .winner-trophy { font-size: 4rem; animation: bounce 0.6s infinite alternate; }
+  @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+  .winner-name { font-family: 'Boogaloo', cursive; font-size: 2.5rem; color: var(--accent2); }
+  .winner-score { font-size: 1.2rem; color: var(--muted); }
+
+  /* Player result */
+  .result-icon { font-size: 4rem; text-align: center; margin: 16px 0; }
+  .result-score { font-family: 'Boogaloo', cursive; font-size: 3rem; text-align: center; color: var(--accent2); }
+  .result-rank { text-align: center; color: var(--muted); font-size: 1rem; margin-bottom: 8px; }
+  .correct-answer-label { text-align: center; padding: 10px; background: rgba(46,204,113,0.1); border-radius: 8px; color: #2ecc71; font-weight: 700; }
+
+  /* Setup */
+  .setup-step { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; margin-bottom: 12px; border-left: 3px solid var(--accent); }
+  .setup-step h4 { margin-bottom: 8px; color: var(--accent2); }
+  .setup-step p, .setup-step li { font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
+  .setup-step ol { padding-left: 18px; }
+  a { color: var(--accent); }
+
+  .home-btns { display: flex; flex-direction: column; gap: 12px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab { flex: 1; padding: 10px; border-radius: 10px; font-weight: 700; background: rgba(255,255,255,0.05); color: var(--muted); cursor: pointer; text-align: center; border: 2px solid transparent; }
+  .tab.active { border-color: var(--accent); color: var(--accent); background: rgba(233,69,96,0.08); }
+
+  .answer-count-box { text-align: center; background: rgba(255,255,255,0.04); border-radius: 10px; padding: 12px; }
+  .answer-count-box span { font-family: 'Boogaloo', cursive; font-size: 2.5rem; color: var(--accent2); display: block; }
+
+  .player-lobby-info { text-align: center; padding: 24px; }
+  .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 16px auto; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  textarea { height: 80px; resize: vertical; }
+
+  /* Sets Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-box {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 28px; width: 90%; max-width: 500px;
+    border: 1px solid rgba(255,255,255,0.08); max-height: 80vh; overflow-y: auto;
+  }
+  .modal-box h2 { margin-bottom: 16px; }
+  .set-item {
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(255,255,255,0.04); border-radius: 10px;
+    padding: 12px 16px; margin-bottom: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .btn-edit { background: rgba(243,156,18,0.2); color: #f39c12; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; }
+  .btn-edit:hover { background: rgba(243,156,18,0.35); }
+  .btn-load { background: rgba(52,152,219,0.2); color: #3498db; padding: 6px 14px; border-radius: 8px; font-weight:700; font-size:0.85rem; }
+  .btn-load:hover { background: rgba(52,152,219,0.35); }
+  .current-set-bar {
+    background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.2);
+    border-radius: 8px; padding: 8px 14px; margin-bottom: 12px;
+    font-size: 0.9rem; color: #2ecc71; font-weight: 700;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  canvas#confettiCanvas { position:fixed; top:0; left:0; pointer-events:none; z-index:9999; display:none; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  @media(max-width:480px) {
+    h1 { font-size: 2.5rem; }
+    .host-options-grid, #pOptions { grid-template-columns: 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .p-option { min-height: 60px; }
+  }
+</style>
+</head>
+<body>
+
+
+<!-- ═══════════════ EDIT MODAL ═══════════════ -->
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal-box">
+    <h2>✏️ Editar Pregunta</h2>
+    <input type="hidden" id="editIdx">
+    <input id="eqText" type="text" placeholder="Pregunta">
+    <div class="grid-2">
+      <input id="eqA" type="text" placeholder="🔴 Opción A">
+      <input id="eqB" type="text" placeholder="🔵 Opción B">
+      <input id="eqC" type="text" placeholder="🟡 Opción C">
+      <input id="eqD" type="text" placeholder="🟢 Opción D">
+    </div>
+    <div class="grid-2" style="margin-bottom:16px">
+      <select id="eqCorrect">
+        <option value="0">✅ Correcta: A</option>
+        <option value="1">✅ Correcta: B</option>
+        <option value="2">✅ Correcta: C</option>
+        <option value="3">✅ Correcta: D</option>
+      </select>
+      <select id="eqTime">
+        <option value="10">⏱ 10 segundos</option>
+        <option value="20">⏱ 20 segundos</option>
+        <option value="30">⏱ 30 segundos</option>
+        <option value="60">⏱ 60 segundos</option>
+      </select>
+    </div>
+    <div class="grid-2">
+      <button class="btn-success" onclick="saveEditQuestion()">💾 Guardar cambios</button>
+      <button class="btn-secondary" onclick="closeEditModal()">✕ Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SETS MODAL ═══════════════ -->
+<div class="modal-overlay" id="setsModal" onclick="if(event.target===this)closeSetsModal()">
+  <div class="modal-box">
+    <h2>📚 Mis Sets de Preguntas</h2>
+    <div id="setsList"></div>
+    <hr style="border-color:rgba(255,255,255,0.08);margin:16px 0">
+    <p style="font-weight:700;margin-bottom:8px">Guardar set actual como:</p>
+    <div style="display:flex;gap:8px">
+      <input id="newSetName" type="text" placeholder="Nombre del set (ej: Trivia RH)" style="margin-bottom:0">
+      <button class="btn-success" style="width:auto;white-space:nowrap;padding:12px 16px" onclick="saveAsNewSet()">💾 Guardar</button>
+    </div>
+    <button class="btn-secondary" style="width:100%;margin-top:12px" onclick="closeSetsModal()">✕ Cerrar</button>
+  </div>
+</div>
+
+<canvas id="confettiCanvas"></canvas>
+
+<!-- ═══════════════ HOME ═══════════════ -->
+<div class="view active" id="homeView">
+  <h1>QuizBlast 🎯</h1>
+  <p class="tagline">El juego de trivia para tu salón o evento</p>
+
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('host')">🎮 Soy el Host</div>
+      <div class="tab" onclick="switchTab('player')">👤 Soy Jugador</div>
+    </div>
+
+    <!-- HOST TAB -->
+    <div id="hostTab">
+      <input id="hostName" type="text" placeholder="Tu nombre (host)" maxlength="20">
+      <button class="btn-primary" onclick="createRoom()">🚀 Crear Sala</button>
+      <button class="btn-secondary" style="width:100%;margin-top:8px" onclick="openSetup()">⚙️ Configurar Firebase</button>
+    </div>
+
+    <!-- PLAYER TAB -->
+    <div id="playerTab" style="display:none">
+      <input id="joinName" type="text" placeholder="Tu nombre" maxlength="20">
+      <input id="joinCode" type="text" placeholder="Código de sala (ej: ABC123)" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;font-size:1.2rem;text-align:center">
+      <button class="btn-primary" onclick="joinRoom()">🎯 Unirse</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SETUP ═══════════════ -->
+<div class="view" id="setupView">
+  <h2>⚙️ Configurar Firebase</h2>
+
+  <div class="setup-step">
+    <h4>Paso 1 — Crea tu proyecto Firebase (GRATIS)</h4>
+    <ol>
+      <li>Ve a <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a></li>
+      <li>Clic en <strong>Agregar proyecto</strong> → ponle nombre → continuar</li>
+      <li>En el menú lateral: <strong>Realtime Database</strong> → Crear base de datos</li>
+      <li>Elige ubicación → <strong>Modo de prueba</strong> (30 días gratis)</li>
+    </ol>
+  </div>
+
+  <div class="setup-step">
+    <h4>Paso 2 — Obtén tu configuración</h4>
+    <ol>
+      <li>En Firebase Console: ⚙️ Configuración del proyecto</li>
+      <li>Baja hasta <strong>Tus apps</strong> → Agrega app Web (&lt;/&gt;)</li>
+      <li>Copia el objeto <code>firebaseConfig</code></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <label style="font-weight:700;margin-bottom:8px;display:block">Pega tu firebaseConfig aquí:</label>
+    <textarea id="fbConfigInput" placeholder='const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "tu-proyecto.firebaseapp.com",
+  databaseURL: "https://tu-proyecto-default-rtdb.firebaseio.com",
+  projectId: "tu-proyecto",
+  ...
+};'></textarea>
+    <button class="btn-primary" onclick="saveConfig()">✅ Guardar y Conectar</button>
+    <div id="setupStatus"></div>
+  </div>
+
+  <button class="btn-secondary" style="width:100%" onclick="showView('homeView')">← Volver</button>
+</div>
+
+<!-- ═══════════════ HOST LOBBY ═══════════════ -->
+<div class="view" id="hostLobbyView">
+  <h2>🎮 Sala creada</h2>
+  <div class="room-code" id="roomCodeDisplay">------</div>
+  <p style="text-align:center;color:var(--muted);margin-bottom:16px">Los jugadores ingresan este código en QuizBlast</p>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2>👥 Jugadores <span class="badge badge-players" id="playerCount">0</span></h2>
+    </div>
+    <div id="playerList" style="min-height:60px"></div>
+  </div>
+
+  <!-- Question builder -->
+  <div class="card">
+    <h2>📝 Preguntas <span id="qCount" class="badge badge-players">0</span></h2>
+    <div class="current-set-bar">
+      <span id="currentSetName">Sin set cargado</span>
+      <div style="display:flex;gap:8px">
+        <button id="updateSetBtn" class="btn-load" onclick="updateCurrentSet()" style="font-size:0.8rem;padding:4px 10px">💾 Actualizar set</button>
+        <button class="btn-load" onclick="openSetsModal()" style="font-size:0.8rem;padding:4px 10px">📚 Mis sets</button>
+      </div>
+    </div>
+    <div id="questionList" style="margin-bottom:12px"></div>
+
+    <input id="qText" type="text" placeholder="Pregunta">
+    <div class="grid-2">
+      <input id="qA" type="text" placeholder="🔴 Opción A">
+      <input id="qB" type="text" placeholder="🔵 Opción B">
+      <input id="qC" type="text" placeholder="🟡 Opción C">
+      <input id="qD" type="text" placeholder="🟢 Opción D">
+    </div>
+    <div class="grid-2" style="margin-bottom:12px">
+      <select id="qCorrect">
+        <option value="0">✅ Correcta: A</option>
+        <option value="1">✅ Correcta: B</option>
+        <option value="2">✅ Correcta: C</option>
+        <option value="3">✅ Correcta: D</option>
+      </select>
+      <select id="qTime">
+        <option value="10">⏱ 10 segundos</option>
+        <option value="20" selected>⏱ 20 segundos</option>
+        <option value="30">⏱ 30 segundos</option>
+        <option value="60">⏱ 60 segundos</option>
+      </select>
+    </div>
+    <div class="grid-2">
+      <button class="btn-secondary" onclick="addQuestion()">➕ Agregar</button>
+      <button id="saveQBtn" class="btn-success" onclick="saveQuestions()">💾 Guardar preguntas</button>
+    </div>
+  </div>
+
+  <button class="btn-primary" onclick="startGame()" style="font-size:1.2rem;padding:18px">🚀 ¡Iniciar Juego!</button>
+</div>
+
+<!-- ═══════════════ HOST QUESTION ═══════════════ -->
+<div class="view" id="hostQuestionView">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <span id="hostQNum" style="color:var(--muted);font-weight:700"></span>
+    <div class="answer-count-box">
+      <span id="hostAnswerCount">0</span>
+      <small style="color:var(--muted)">resp.</small>
+    </div>
+    <span class="timer-num" id="timerNum">20</span>
+  </div>
+  <div class="timer-wrap"><div class="timer-bar" id="timerBar" style="width:100%"></div></div>
+  <div class="card">
+    <div class="host-q-text" id="hostQText"></div>
+    <div class="host-options-grid" id="hostOptions"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ HOST RESULTS ═══════════════ -->
+<div class="view" id="hostResultsView">
+  <h2>📊 Ranking parcial</h2>
+  <div class="card">
+    <div id="hostLeaderboard"></div>
+  </div>
+  <button id="nextQBtn" class="btn-primary" onclick="nextQuestion()">➡️ Siguiente Pregunta</button>
+</div>
+
+<!-- ═══════════════ HOST FINISHED ═══════════════ -->
+<div class="view" id="hostFinishedView">
+  <h2>🏆 ¡Juego Terminado!</h2>
+  <div class="winner-box">
+    <div class="winner-trophy">🏆</div>
+    <div class="winner-name" id="winnerName"></div>
+    <div class="winner-score">Ganador con <span id="winnerScore"></span> pts</div>
+  </div>
+  <div class="card">
+    <h2>Ranking Final</h2>
+    <div id="finalLeaderboard"></div>
+  </div>
+  <button class="btn-secondary" style="width:100%" onclick="endGame()">🔄 Nuevo Juego</button>
+</div>
+
+<!-- ═══════════════ PLAYER LOBBY ═══════════════ -->
+<div class="view" id="playerLobbyView">
+  <div class="player-lobby-info">
+    <div class="room-code" id="playerRoomCode"></div>
+    <h2 id="playerWelcome"></h2>
+    <div class="spinner"></div>
+    <p style="color:var(--muted)">Esperando que el host inicie el juego...</p>
+    <p style="margin-top:12px">Jugadores conectados: <strong id="playerCount2">0</strong></p>
+  </div>
+</div>
+
+<!-- ═══════════════ PLAYER QUESTION ═══════════════ -->
+<div class="view" id="playerQuestionView">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <span id="pQNum" style="color:var(--muted);font-weight:700"></span>
+    <span class="timer-num" id="pTimerNum">20</span>
+  </div>
+  <div class="timer-wrap"><div class="timer-bar" id="pTimerBar" style="width:100%"></div></div>
+  <div class="card" style="margin:12px 0">
+    <div class="host-q-text" id="pQText"></div>
+  </div>
+  <div id="pOptions"></div>
+</div>
+
+<!-- ═══════════════ PLAYER RESULT ═══════════════ -->
+<div class="view" id="playerResultView">
+  <div class="result-icon" id="pResultIcon"></div>
+  <div id="pResultMsg" style="text-align:center;font-size:1.8rem;font-weight:900;margin-bottom:8px"></div>
+  <div class="result-score" id="pScore"></div>
+  <div class="result-rank" id="pRank"></div>
+  <div class="correct-answer-label" id="pCorrectAnswer"></div>
+  <p style="text-align:center;margin-top:20px;color:var(--muted)">Espera la siguiente pregunta...</p>
+</div>
+
+<!-- ═══════════════ PLAYER FINISHED ═══════════════ -->
+<div class="view" id="playerFinishedView">
+  <div class="winner-box">
+    <div class="winner-trophy" id="pFinalMedal"></div>
+    <div class="winner-name" id="pFinalName"></div>
+    <div style="font-family:'Boogaloo';font-size:2rem;color:var(--accent2)" id="pFinalRank"></div>
+    <div class="winner-score" id="pFinalScore"></div>
+  </div>
+  <div class="card">
+    <h2>Top 5 Final</h2>
+    <div id="pFinalLB"></div>
+  </div>
+  <button class="btn-secondary" style="width:100%;margin-top:12px" onclick="location.reload()">🔄 Jugar de nuevo</button>
+</div>
+
+<script>
+  function switchTab(tab) {
+    document.getElementById('hostTab').style.display = tab === 'host' ? 'block' : 'none';
+    document.getElementById('playerTab').style.display = tab === 'player' ? 'block' : 'none';
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0) === (tab==='host')));
+  }
+</script>
+</body>
+</html>
