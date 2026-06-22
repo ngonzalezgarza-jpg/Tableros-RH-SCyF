@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>360° Evaluation — People Leader | Mi Camino DEACERO</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --purple: #6B21A8; --purple-light: #9333EA; --purple-soft: #EDE9FE;
+    --purple-pale: #F5F3FF; --purple-dark: #4C1D95; --lilac: #C4B5FD;
+    --bg: #F8F7FC; --text-dark: #1e1130; --text-mid: #4B5563; --text-light: #9CA3AF;
+    --warm-line: #E5E0F0; --green: #10B981; --radius: 18px;
+    --shadow: 0 4px 24px rgba(107,33,168,0.10); --shadow-lg: 0 12px 48px rgba(107,33,168,0.16);
+  }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-dark); min-height: 100vh; }
+
+  .hero { background: linear-gradient(135deg, #F3F0FA 0%, #EDE9FE 100%); padding: 36px 40px 32px; position: relative; overflow: hidden; }
+  .hero::after { content: ''; position: absolute; top: -60px; right: -60px; width: 260px; height: 260px; background: radial-gradient(circle, rgba(107,33,168,0.08) 0%, transparent 70%); border-radius: 50%; }
+  .hero-logo { display: inline-flex; align-items: center; gap: 8px; background: var(--purple); border-radius: 10px; padding: 7px 14px; margin-bottom: 20px; }
+  .hero-logo span { font-size: 11px; font-weight: 800; color: white; letter-spacing: 0.5px; line-height: 1.2; }
+  .hero h1 { font-size: clamp(1.6rem, 4vw, 2.6rem); font-weight: 900; color: var(--purple); line-height: 1.1; margin-bottom: 10px; }
+  .hero-sub { font-size: 14px; color: var(--text-mid); line-height: 1.65; max-width: 580px; margin-bottom: 20px; }
+  .hero-sub strong { color: var(--purple); }
+  .date-badge { display: inline-flex; align-items: center; gap: 8px; background: white; border: 2px solid var(--purple-soft); border-radius: 12px; padding: 8px 16px; font-size: 13px; font-weight: 700; color: var(--text-dark); width: fit-content; }
+
+  .scale-bar { background: var(--purple-dark); padding: 16px 40px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .scale-bar-title { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--lilac); white-space: nowrap; }
+  .scale-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .scale-pill { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 4px 10px; color: white; font-size: 10px; }
+  .scale-pill strong { color: var(--lilac); font-weight: 700; }
+
+  .container { max-width: 780px; margin: 0 auto; padding: 36px 20px 60px; }
+  .progress-wrap { margin-bottom: 28px; }
+  .progress-track { background: var(--warm-line); border-radius: 4px; height: 5px; overflow: hidden; margin-bottom: 12px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--purple) 0%, var(--purple-light) 100%); border-radius: 4px; transition: width 0.4s ease; }
+  .progress-meta { display: flex; justify-content: space-between; align-items: center; }
+  .step-dots { display: flex; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--warm-line); transition: all 0.3s; }
+  .dot.active { background: var(--purple); width: 24px; border-radius: 4px; }
+  .dot.done { background: var(--green); }
+  .progress-label { font-size: 12px; font-weight: 600; color: var(--text-light); }
+
+  .card { background: white; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 20px; border: 1px solid rgba(107,33,168,0.06); }
+  .card-header { background: linear-gradient(135deg, var(--purple) 0%, var(--purple-light) 100%); padding: 22px 28px; display: flex; align-items: center; gap: 14px; }
+  .dim-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .card-header h2 { font-size: 1.2rem; font-weight: 800; color: white; }
+  .card-header p { font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+  .card-body { padding: 28px; }
+
+  .q-item { padding: 22px 0; border-bottom: 1px solid var(--warm-line); animation: up 0.35s ease both; }
+  .q-item:last-child { border-bottom: none; }
+  @keyframes up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .q-chip { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--purple); background: var(--purple-soft); border-radius: 20px; padding: 3px 10px; margin-bottom: 10px; }
+  .q-text { font-size: 14px; font-weight: 500; color: var(--text-dark); line-height: 1.65; margin-bottom: 14px; }
+
+  .rating-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 12px; }
+  .star-btn { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 8px; border-radius: 12px; border: 2px solid var(--warm-line); background: var(--bg); transition: all 0.15s; min-width: 52px; user-select: none; }
+  .star-btn:hover { border-color: var(--purple-light); background: var(--purple-pale); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(107,33,168,0.12); }
+  .star-btn.sel { border-color: var(--purple); background: var(--purple-soft); box-shadow: 0 4px 14px rgba(107,33,168,0.18); }
+  .star-btn .s-stars { font-size: 14px; line-height: 1; }
+  .star-btn .s-num { font-size: 10px; font-weight: 700; color: var(--text-mid); }
+  .star-btn.sel .s-num { color: var(--purple); }
+
+  .na-btn { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 10px; border-radius: 12px; border: 2px dashed var(--warm-line); background: transparent; transition: all 0.15s; min-width: 68px; user-select: none; margin-left: 4px; }
+  .na-btn:hover { border-color: var(--text-light); background: #F9FAFB; }
+  .na-btn.sel { border-color: var(--text-mid); border-style: solid; background: #F3F4F6; }
+  .na-btn .na-icon { font-size: 14px; line-height: 1; }
+  .na-btn .na-label { font-size: 9px; font-weight: 700; color: var(--text-light); text-align: center; line-height: 1.3; }
+  .na-btn.sel .na-label { color: var(--text-mid); }
+
+  .q-comment { margin-top: 10px; }
+  .comment-label { font-size: 10px; font-weight: 600; color: var(--text-light); letter-spacing: 0.5px; margin-bottom: 5px; }
+  .q-comment textarea { width: 100%; padding: 10px 13px; border: 1.5px solid var(--warm-line); border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 12px; color: var(--text-dark); background: var(--bg); resize: vertical; min-height: 60px; transition: all 0.2s; line-height: 1.5; }
+  .q-comment textarea:focus { outline: none; border-color: var(--purple); background: white; box-shadow: 0 0 0 3px rgba(107,33,168,0.08); }
+  .q-comment textarea::placeholder { color: var(--text-light); font-style: italic; }
+
+  .intro-card { background: white; border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; margin-bottom: 20px; border: 1px solid rgba(107,33,168,0.06); }
+  .intro-card h3 { font-size: 1.1rem; font-weight: 800; color: var(--purple); margin-bottom: 16px; }
+  .notice { border-radius: 12px; padding: 14px 18px; display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
+  .notice.purple { background: linear-gradient(135deg, var(--purple-pale), #F0EEFF); border: 1.5px solid var(--lilac); }
+  .notice.green { background: linear-gradient(135deg, #F0FDF4, #DCFCE7); border: 1.5px solid #86EFAC; }
+  .notice .icon { font-size: 18px; flex-shrink: 0; }
+  .notice.purple p { font-size: 13px; color: var(--purple-dark); line-height: 1.55; font-weight: 500; }
+  .notice.green p { font-size: 13px; color: #166534; line-height: 1.55; font-weight: 500; }
+
+  .tips-list { list-style: none; }
+  .tips-list li { padding: 9px 0; font-size: 13px; color: var(--text-mid); border-bottom: 1px solid var(--warm-line); display: flex; gap: 10px; line-height: 1.5; }
+  .tips-list li:last-child { border-bottom: none; }
+  .tips-list .n { color: var(--purple); font-weight: 800; flex-shrink: 0; }
+
+  .field-group { margin-bottom: 18px; }
+  .field-group label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-mid); margin-bottom: 7px; }
+  .req { color: #EF4444; margin-left: 2px; }
+  .field-hint { font-size: 11px; color: var(--text-light); margin-bottom: 7px; font-style: italic; }
+  .field-group input, .field-group select, .field-group textarea { width: 100%; padding: 11px 15px; border: 2px solid var(--warm-line); border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dark); background: white; transition: all 0.2s; -webkit-appearance: none; appearance: none; }
+  .field-group select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239CA3AF' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 13px center; padding-right: 34px; }
+  .field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px rgba(107,33,168,0.10); }
+  .field-group textarea { min-height: 85px; resize: vertical; }
+
+  .open-section { background: white; border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; margin-bottom: 20px; border: 1px solid rgba(107,33,168,0.06); }
+  .open-section h3 { font-size: 1.1rem; font-weight: 800; color: var(--purple); margin-bottom: 6px; }
+  .open-section .sub { font-size: 13px; color: var(--text-light); margin-bottom: 22px; }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--warm-line); }
+  .btn { padding: 13px 28px; border-radius: 12px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; }
+  .btn-primary { background: linear-gradient(135deg, var(--purple) 0%, var(--purple-light) 100%); color: white; box-shadow: 0 4px 16px rgba(107,33,168,0.3); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(107,33,168,0.38); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .btn-ghost { background: transparent; color: var(--text-mid); border: 2px solid var(--warm-line); }
+  .btn-ghost:hover { border-color: var(--purple); color: var(--purple); }
+
+  .success-wrap { background: white; border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 60px 28px; text-align: center; }
+  .success-icon { font-size: 60px; margin-bottom: 20px; }
+  .success-wrap h2 { font-size: 1.8rem; font-weight: 900; color: var(--purple); margin-bottom: 10px; }
+  .success-wrap p { font-size: 15px; color: var(--text-mid); line-height: 1.65; max-width: 440px; margin: 0 auto 24px; }
+
+  .sending-overlay { display: none; position: fixed; inset: 0; background: rgba(107,33,168,0.15); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .sending-overlay.active { display: flex; }
+  .spinner { width: 48px; height: 48px; border: 4px solid rgba(107,33,168,0.2); border-top-color: var(--purple); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sending-text { font-size: 15px; font-weight: 700; color: var(--purple); background: white; padding: 10px 24px; border-radius: 20px; box-shadow: var(--shadow); }
+
+  .hidden { display: none !important; }
+  @media (max-width: 640px) {
+    .hero { padding: 24px 20px; }
+    .scale-bar { padding: 14px 20px; }
+    .container { padding: 24px 14px 48px; }
+    .card-body, .intro-card, .open-section { padding: 18px; }
+    .star-btn { min-width: 44px; }
+    .na-btn { min-width: 58px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sending-overlay" id="sendingOverlay">
+  <div class="spinner"></div>
+  <div class="sending-text">Submitting your evaluation...</div>
+</div>
+
+<div class="hero">
+  <div class="hero-logo"><span>MI CAMINO DEACERO®</span></div>
+  <h1>360° Feedback Evaluation</h1>
+  <p class="hero-sub">You've been invited to share your perspective on a leader you've worked with. <strong>Your external point of view is uniquely valuable</strong> — it helps build a fuller, more honest picture of their leadership impact. This form is simple: read each statement and rate how often you've observed that behavior.</p>
+  <div class="date-badge">📅 Deadline: <strong>June 30</strong></div>
+</div>
+
+<div class="scale-bar">
+  <div class="scale-bar-title">⭐ Rating Scale</div>
+  <div class="scale-pills">
+    <div class="scale-pill"><strong>1</strong> Rarely</div>
+    <div class="scale-pill"><strong>2</strong> Occasionally</div>
+    <div class="scale-pill"><strong>3</strong> Regularly</div>
+    <div class="scale-pill"><strong>4</strong> Exceeds expectations</div>
+    <div class="scale-pill"><strong>5</strong> Role model</div>
+    <div class="scale-pill"><strong>🚫</strong> Not enough info</div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="pBar" style="width:2%"></div></div>
+    <div class="progress-meta">
+      <div class="step-dots" id="stepDots"></div>
+      <span class="progress-label" id="pLabel">Getting started</span>
+    </div>
+  </div>
+
+  <div id="s-intro">
+    <div class="intro-card">
+      <h3>📋 Before you begin</h3>
+      <div class="notice purple">
+        <div class="icon">🔒</div>
+        <p>This evaluation is <strong>completely anonymous</strong>. Your responses will be used exclusively for professional development and will never be shared individually.</p>
+      </div>
+      <div class="notice green">
+        <div class="icon">💎</div>
+        <p>Your perspective as someone outside the organization is <strong>especially valuable</strong>. You observe leadership behaviors that internal colleagues may take for granted. Thank you for investing your time — it makes a real difference.</p>
+      </div>
+      <div class="field-group">
+        <label>Name of the leader you are evaluating <span class="req">*</span></label>
+        <input type="text" id="evaluateeName" placeholder="Full name...">
+      </div>
+      <div class="field-group">
+        <label>Your relationship with this person <span class="req">*</span></label>
+        <select id="relationship">
+          <option value="">Select...</option>
+          <option value="client">Client / Customer</option>
+          <option value="supplier">Supplier / Vendor</option>
+          <option value="partner">Business partner</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="intro-card">
+      <h3>💡 Tips for a great evaluation</h3>
+      <ul class="tips-list">
+        <li><span class="n">1.</span><span><strong>Base it on facts:</strong> Think of specific situations you've observed, not general impressions.</span></li>
+        <li><span class="n">2.</span><span><strong>Use 🚫 freely:</strong> If you haven't seen enough of a behavior to rate it, select "Not enough info" — it's the most honest answer.</span></li>
+        <li><span class="n">3.</span><span><strong>Add comments when you can:</strong> A short note explaining your rating makes feedback much more useful.</span></li>
+        <li><span class="n">4.</span><span><strong>Avoid bias:</strong> Don't let one experience — positive or negative — influence all your other ratings.</span></li>
+      </ul>
+    </div>
+    <div class="nav-bar">
+      <div></div>
+      <button class="btn btn-primary" onclick="start()">Start Evaluation →</button>
+    </div>
+  </div>
+
+  <div id="s-dims" class="hidden"></div>
+
+  <div id="s-open" class="hidden">
+    <div class="open-section">
+      <h3>💬 Overall Feedback</h3>
+      <p class="sub">These two fields are <strong>required</strong>. Be as specific as possible — concrete examples make feedback much more actionable.</p>
+      <div class="field-group">
+        <label>⭐ Top Strengths <span class="req">*</span></label>
+        <p class="field-hint">What leadership behaviors or skills stand out positively in this person?</p>
+        <textarea id="strengths" placeholder="e.g. Empowers the team effectively, communicates vision clearly, manages complexity with composure, develops people proactively..."></textarea>
+      </div>
+      <div class="field-group" style="margin-top:20px;">
+        <label>🚀 Development Areas <span class="req">*</span></label>
+        <p class="field-hint">What could this leader work on to grow further? Be constructive and specific.</p>
+        <textarea id="development" placeholder="e.g. Could improve delegation to allow team members more autonomy, opportunity to better balance short-term pressure with longer-term vision..."></textarea>
+      </div>
+    </div>
+    <div class="nav-bar">
+      <button class="btn btn-ghost" onclick="prevStep()">← Back</button>
+      <button class="btn btn-primary" id="submitBtn" onclick="submit()">Submit Evaluation ✓</button>
+    </div>
+  </div>
+
+  <div id="s-success" class="hidden">
+    <div class="success-wrap">
+      <div class="success-icon">🙏</div>
+      <h2>Thank you!</h2>
+      <p>Your evaluation has been submitted successfully. Your honest, external perspective is a key input in this leader's professional development at DEACERO.</p>
+      <button class="btn btn-primary" onclick="reset()" style="margin-top:8px;">Evaluate Someone Else</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var SHEETDB_URL = 'https://sheetdb.io/api/v1/olbheky1yf382';
+var FORM_TYPE = 'People Leader';
+
+var DIMS = [
+  { id:'vision', name:'Vision', icon:'🔭', desc:'Strategic thinking and future orientation', qs:[
+    { c:'Aspiration', q:'Does this person drive the definition and achievement of challenging mid-term goals aligned with DEACERO\'s Vision?' },
+    { c:'Anticipating Events', q:'Does this person anticipate and adjust the team\'s action plans in a timely manner to avoid deviations?' },
+    { c:'Innovation & Creativity', q:'Does this person constructively challenge the status quo to create differentiating capabilities through continuous improvement, viewing mistakes as learning opportunities?' },
+    { c:'Focus on Priorities', q:'Does this person keep the team focused on the right priorities aligned with the business strategy and key value levers?' }
+  ]},
+  { id:'people', name:'People', icon:'🤝', desc:'Leadership, development and team engagement', qs:[
+    { c:'Inspiring & Developing Others', q:'Does this person inspire others to feel proud of belonging to DEACERO by actively guiding, recognizing, and developing their team members?' },
+    { c:'Passion', q:'Does this person show energy, commitment, and enthusiasm in every action, and inspire the same in their team?' },
+    { c:'Communication & Influence', q:'Does this person actively listen to understand diverse perspectives and communicate effectively with their team and key stakeholders?' },
+    { c:'Teamwork', q:'Does this person foster effective collaboration within and beyond the team, valuing every person\'s contribution regardless of hierarchy?' },
+    { c:'Emotional Intelligence', q:'Does this person recognize and manage their own and others\' emotions, remaining composed and constructive even in high-friction situations?' }
+  ]},
+  { id:'analysis', name:'Analysis', icon:'📊', desc:'Decision making and performance tracking', qs:[
+    { c:'Risk Management', q:'Does this person evaluate and manage controls to effectively mitigate operational and safety risks within their area?' },
+    { c:'Smart Decision Making', q:'Does this person make timely, fact-based decisions that prioritize the needs of the business?' },
+    { c:'Measuring Success', q:'Does this person effectively manage systems and processes that track priorities and key levers to ensure expected results?' },
+    { c:'Critical Thinking', q:'Does this person identify patterns and root causes in their area\'s processes to generate better ways of thinking and acting?' }
+  ]},
+  { id:'execution', name:'Execution', icon:'⚡', desc:'Accountability, empowerment and team performance', qs:[
+    { c:'Accountability', q:'Does this person know, understand, and own their role and responsibilities, helping the team focus on what generates value?' },
+    { c:'Empowerment', q:'Does this person build the right conditions to grant authority and autonomy, enabling team members to make better decisions?' },
+    { c:'Project Management', q:'Does this person demonstrate focus on operational discipline and change management for the timely and effective delivery of projects?' },
+    { c:'Operational Effectiveness', q:'Does this person optimize team processes through standardization and enablement, ensuring resources and roles translate into maximum business value?' }
+  ]}
+];
+
+var step = -1, ratings = {}, comments = {}, total = DIMS.length + 1;
+
+function updateProgress() {
+  var pct = step < 0 ? 2 : step >= total ? 100 : Math.round(((step+1)/total)*100);
+  document.getElementById('pBar').style.width = pct + '%';
+  var dots = document.getElementById('stepDots');
+  dots.innerHTML = '';
+  for (var i = 0; i < total; i++) {
+    var d = document.createElement('div');
+    d.className = 'dot' + (i < step ? ' done' : i === step ? ' active' : '');
+    dots.appendChild(d);
+  }
+  var names = DIMS.map(function(d){return d.name;}).concat(['Comments']);
+  document.getElementById('pLabel').textContent =
+    step >= 0 && step < total ? 'Section '+(step+1)+' of '+total+': '+names[step] :
+    step >= total ? 'Completed' : 'Getting started';
+}
+
+function show(id) {
+  ['s-intro','s-dims','s-open','s-success'].forEach(function(s) {
+    document.getElementById(s).classList.toggle('hidden', s !== id);
+  });
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function buildDim(i) {
+  var d = DIMS[i];
+  var qHtml = '';
+  d.qs.forEach(function(q, qi) {
+    var key = d.id+'-'+qi;
+    var cur = ratings[key] !== undefined ? ratings[key] : null;
+    var curComment = comments[key] || '';
+    var starsHtml = '';
+    for (var s = 1; s <= 5; s++) {
+      var stars = '';
+      for (var k = 0; k < s; k++) stars += '⭐';
+      starsHtml += '<div class="star-btn'+(cur===s?' sel':'')+'" onclick="rate(\''+key+'\','+s+',this)"><span class="s-stars">'+stars+'</span><span class="s-num">'+s+'</span></div>';
+    }
+    starsHtml += '<div class="na-btn'+(cur==='na'?' sel':'')+'" onclick="rateNA(\''+key+'\',this)"><span class="na-icon">🚫</span><span class="na-label">Not enough<br>info</span></div>';
+    qHtml += '<div class="q-item" style="animation-delay:'+(qi*0.07)+'s">'+
+      '<div class="q-chip">'+q.c+'</div>'+
+      '<div class="q-text">'+q.q+'</div>'+
+      '<div class="rating-row" id="row-'+key+'">'+starsHtml+'</div>'+
+      '<div class="q-comment"><div class="comment-label">💬 Optional comment</div>'+
+      '<textarea id="cmt-'+key+'" placeholder="Add context or a specific example..." onchange="saveComment(\''+key+'\')">'+curComment+'</textarea></div>'+
+      '</div>';
+  });
+  var back = i === 0 ? '<button class="btn btn-ghost" onclick="goIntro()">← Back</button>' : '<button class="btn btn-ghost" onclick="prevStep()">← Back</button>';
+  var next = i === DIMS.length-1 ? 'Next: Overall Feedback →' : 'Next Section →';
+  document.getElementById('s-dims').innerHTML =
+    '<div class="card"><div class="card-header"><div class="dim-icon">'+d.icon+'</div><div><h2>'+d.name+'</h2><p>'+d.desc+'</p></div></div><div class="card-body">'+qHtml+'</div></div>'+
+    '<div class="nav-bar">'+back+'<button class="btn btn-primary" onclick="nextStep()">'+next+'</button></div>';
+}
+
+function rate(key, val, el) {
+  ratings[key] = val;
+  var row = document.getElementById('row-'+key);
+  if (row) row.querySelectorAll('.star-btn,.na-btn').forEach(function(b){b.classList.remove('sel');});
+  el.classList.add('sel');
+}
+
+function rateNA(key, el) {
+  ratings[key] = 'na';
+  var row = document.getElementById('row-'+key);
+  if (row) row.querySelectorAll('.star-btn,.na-btn').forEach(function(b){b.classList.remove('sel');});
+  el.classList.add('sel');
+}
+
+function saveComment(key) {
+  var el = document.getElementById('cmt-'+key);
+  if (el) comments[key] = el.value;
+}
+
+function start() {
+  if (!document.getElementById('evaluateeName').value.trim()) { alert('Please enter the name of the leader you are evaluating.'); return; }
+  if (!document.getElementById('relationship').value) { alert('Please select your relationship with this person.'); return; }
+  step = 0; updateProgress(); buildDim(0); show('s-dims');
+}
+
+function goIntro() { step = -1; updateProgress(); show('s-intro'); }
+
+function nextStep() {
+  if (DIMS[step]) DIMS[step].qs.forEach(function(q,qi){ saveComment(DIMS[step].id+'-'+qi); });
+  step++; updateProgress();
+  if (step < DIMS.length) { buildDim(step); show('s-dims'); } else show('s-open');
+}
+
+function prevStep() {
+  step--; updateProgress();
+  if (step < 0) { goIntro(); return; }
+  buildDim(step); show('s-dims');
+}
+
+function submit() {
+  var str = document.getElementById('strengths').value.trim();
+  var dev = document.getElementById('development').value.trim();
+  if (!str) { alert('Please share at least one strength before submitting.'); return; }
+  if (!dev) { alert('Please share at least one development area before submitting.'); return; }
+
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  document.getElementById('sendingOverlay').classList.add('active');
+
+  var payload = {
+    data: {
+      timestamp: new Date().toISOString(),
+      form_type: FORM_TYPE,
+      evaluatee: document.getElementById('evaluateeName').value.trim(),
+      relationship: document.getElementById('relationship').value,
+      vision_aspiration: ratings['vision-0'] || '',
+      vision_aspiration_comment: comments['vision-0'] || '',
+      vision_anticipating: ratings['vision-1'] || '',
+      vision_anticipating_comment: comments['vision-1'] || '',
+      vision_innovation: ratings['vision-2'] || '',
+      vision_innovation_comment: comments['vision-2'] || '',
+      vision_priorities: ratings['vision-3'] || '',
+      vision_priorities_comment: comments['vision-3'] || '',
+      people_inspiring: ratings['people-0'] || '',
+      people_inspiring_comment: comments['people-0'] || '',
+      people_passion: ratings['people-1'] || '',
+      people_passion_comment: comments['people-1'] || '',
+      people_communication: ratings['people-2'] || '',
+      people_communication_comment: comments['people-2'] || '',
+      people_teamwork: ratings['people-3'] || '',
+      people_teamwork_comment: comments['people-3'] || '',
+      people_emotional: ratings['people-4'] || '',
+      people_emotional_comment: comments['people-4'] || '',
+      analysis_risk: ratings['analysis-0'] || '',
+      analysis_risk_comment: comments['analysis-0'] || '',
+      analysis_decisions: ratings['analysis-1'] || '',
+      analysis_decisions_comment: comments['analysis-1'] || '',
+      analysis_measuring: ratings['analysis-2'] || '',
+      analysis_measuring_comment: comments['analysis-2'] || '',
+      analysis_critical: ratings['analysis-3'] || '',
+      analysis_critical_comment: comments['analysis-3'] || '',
+      execution_accountability: ratings['execution-0'] || '',
+      execution_accountability_comment: comments['execution-0'] || '',
+      execution_empowerment: ratings['execution-1'] || '',
+      execution_empowerment_comment: comments['execution-1'] || '',
+      execution_projects: ratings['execution-2'] || '',
+      execution_projects_comment: comments['execution-2'] || '',
+      execution_effectiveness: ratings['execution-3'] || '',
+      execution_effectiveness_comment: comments['execution-3'] || '',
+      strengths: str,
+      development_areas: dev
+    }
+  };
+
+  fetch(SHEETDB_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(res) { return res.json(); })
+  .then(function() {
+    document.getElementById('sendingOverlay').classList.remove('active');
+    step = total; updateProgress(); show('s-success');
+  })
+  .catch(function() {
+    document.getElementById('sendingOverlay').classList.remove('active');
+    btn.disabled = false;
+    alert('There was a connection error. Please check your internet and try again.');
+  });
+}
+
+function reset() {
+  ratings = {}; comments = {}; step = -1; updateProgress();
+  ['evaluateeName','strengths','development'].forEach(function(id){ document.getElementById(id).value = ''; });
+  document.getElementById('relationship').value = '';
+  show('s-intro');
+}
+
+updateProgress();
+</script>
+</body>
+</html>
