@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Evaluación · Líder de líderes · DEACERO</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:#F5F4F8;color:#1a1a2e;min-height:100vh;}
+.top-bar{background:#1a1a2e;padding:14px 24px;display:flex;align-items:center;gap:12px;}
+.logo{width:32px;height:32px;background:#534AB7;border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.top-bar span{color:white;font-size:14px;font-weight:500;}
+.top-bar .sub{color:rgba(255,255,255,.45);font-size:12px;}
+.container{max-width:640px;margin:0 auto;padding:32px 20px 60px;}
+.screen{display:none;}.screen.active{display:block;}
+.welcome-card{background:white;border-radius:16px;padding:32px;margin-bottom:16px;border:1px solid #eee;}
+.level-pill{display:inline-flex;align-items:center;gap:6px;background:#FAEEDA;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;color:#633806;margin-bottom:18px;}
+.welcome-card h1{font-size:21px;font-weight:600;color:#1a1a2e;margin-bottom:8px;line-height:1.3;}
+.welcome-card p{font-size:14px;color:#555;line-height:1.7;}
+.info-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;}
+.pill{background:#F5F4F8;border:1px solid #e8e6f0;border-radius:20px;padding:5px 12px;font-size:12px;color:#534AB7;font-weight:500;}
+.form-card{background:white;border-radius:16px;padding:24px;margin-bottom:16px;border:1px solid #eee;}
+.form-card label{font-size:13px;font-weight:500;color:#444;margin-bottom:6px;display:block;}
+.form-card input{width:100%;padding:10px 14px;font-size:14px;border-radius:10px;border:1.5px solid #e2e0ed;background:white;color:#1a1a2e;outline:none;transition:border-color .15s;}
+.form-card input:focus{border-color:#534AB7;}
+.form-group{margin-bottom:16px;}.form-group:last-child{margin-bottom:0;}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;font-size:14px;font-weight:500;border-radius:10px;cursor:pointer;border:none;transition:all .15s;}
+.btn-primary{background:#534AB7;color:white;width:100%;justify-content:center;}
+.btn-primary:hover{background:#3C3489;}
+.btn-sec{background:white;color:#534AB7;border:1.5px solid #534AB7;padding:10px 18px;font-size:13px;border-radius:10px;cursor:pointer;}
+.prog-wrap{margin-bottom:24px;}
+.prog-meta{display:flex;justify-content:space-between;margin-bottom:8px;}
+.prog-meta .cn{font-size:13px;font-weight:500;color:#534AB7;}
+.prog-meta .ct{font-size:12px;color:#888;}
+.prog-bar{background:#e8e6f0;border-radius:20px;height:5px;}
+.prog-fill{height:5px;border-radius:20px;background:#534AB7;transition:width .3s;}
+.q-card{background:white;border-radius:16px;padding:24px;margin-bottom:16px;border:1px solid #eee;}
+.badge{display:inline-block;font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;margin-bottom:12px;}
+.bs{background:#EEEDFE;color:#534AB7;}.bq{background:#E1F5EE;color:#085041;}.bl{background:#FAEEDA;color:#633806;}
+.q-text{font-size:15px;font-weight:500;color:#1a1a2e;line-height:1.6;margin-bottom:16px;}
+.sbox{background:#F5F4F8;border-left:3px solid #534AB7;border-radius:0 10px 10px 0;padding:16px 18px;margin-bottom:18px;font-size:14px;color:#333;line-height:1.8;}
+.opts{display:grid;gap:10px;}
+.opt{text-align:left;padding:14px 16px;font-size:14px;border-radius:10px;border:1.5px solid #e2e0ed;background:white;color:#1a1a2e;cursor:pointer;line-height:1.5;transition:all .15s;width:100%;}
+.opt:hover{border-color:#534AB7;background:#FAFAFE;}
+.opt.sel{border-color:#534AB7;background:#EEEDFE;color:#3C3489;font-weight:500;}
+.sv{font-size:28px;font-weight:600;color:#534AB7;text-align:center;margin-bottom:8px;}
+input[type=range]{width:100%;accent-color:#534AB7;margin:8px 0;}
+.sl-labels{display:flex;justify-content:space-between;font-size:11px;color:#888;margin-top:4px;}
+.nav-row{display:flex;align-items:center;gap:12px;}
+.thanks{background:white;border-radius:16px;padding:40px 32px;text-align:center;border:1px solid #eee;}
+.t-icon{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
+.err{background:#FCEBEB;border:1px solid #f09595;border-radius:10px;padding:12px 16px;font-size:13px;color:#791F1F;margin-bottom:16px;display:none;}
+@keyframes bounce{0%,80%,100%{transform:scale(.7);opacity:.5}40%{transform:scale(1);opacity:1}}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <div class="logo"><svg width="18" height="18" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+  <span>DEACERO</span><span class="sub">&nbsp;· Evaluación de competencias</span>
+</div>
+<div class="container">
+  <div class="screen active" id="s0">
+    <div class="welcome-card">
+      <div class="level-pill">&#9679; Líder de líderes</div>
+      <h1>Evaluación de competencias</h1>
+      <p>Esta evaluación es parte de tu diagnóstico de desarrollo profesional en DEACERO. No existen respuestas correctas ni incorrectas — lo que buscamos es entender cómo piensas y cómo actúas en situaciones reales de trabajo. Responde con honestidad; eso es lo que hace que los resultados sean útiles para ti.</p>
+      <div class="info-pills">
+        <span class="pill">6 competencias</span>
+        <span class="pill">12 preguntas</span>
+        <span class="pill">~10 minutos</span>
+        <span class="pill">Confidencial</span>
+      </div>
+    </div>
+    <div class="form-card">
+      <div class="form-group"><label>Nombre completo</label><input type="text" id="i-n" placeholder="Escribe tu nombre completo"/></div>
+      <div class="form-group"><label>Área / dirección</label><input type="text" id="i-a" placeholder="Ej. Transformación y Digital"/></div>
+      <div class="form-group"><label>Puesto actual</label><input type="text" id="i-p" placeholder="Ej. Subdirector de Transformación y Digital"/></div>
+    </div>
+    <div class="err" id="e0">Por favor completa todos los campos para continuar.</div>
+    <button class="btn btn-primary" onclick="go()">Comenzar evaluación →</button>
+  </div>
+
+  <div class="screen" id="s1">
+    <div class="prog-wrap">
+      <div class="prog-meta"><span class="cn" id="pc"></span><span class="ct" id="pn"></span></div>
+      <div class="prog-bar"><div class="prog-fill" id="pf" style="width:0%"></div></div>
+    </div>
+    <div class="err" id="e1">Selecciona una opción para continuar.</div>
+    <div id="qa"></div>
+    <div class="nav-row">
+      <button class="btn-sec" id="bp" onclick="prev()" style="visibility:hidden;">← Anterior</button>
+      <button class="btn btn-primary" id="bn" onclick="nxt()" style="flex:1;justify-content:center;">Siguiente →</button>
+    </div>
+  </div>
+
+  <div class="screen" id="s2">
+    <div class="thanks">
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:#534AB7;animation:bounce .9s infinite;"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#534AB7;animation:bounce .9s .15s infinite;"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#534AB7;animation:bounce .9s .3s infinite;"></div>
+      </div>
+      <h2 style="font-size:20px;font-weight:600;">Enviando respuestas...</h2>
+      <p style="font-size:14px;color:#666;margin-top:8px;">Por favor no cierres esta ventana.</p>
+    </div>
+  </div>
+
+  <div class="screen" id="s3">
+    <div class="thanks">
+      <div class="t-icon" style="background:#E1F5EE;"><svg width="32" height="32" fill="none" stroke="#1D9E75" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+      <h2 style="font-size:22px;font-weight:600;margin-bottom:10px;">¡Listo, gracias!</h2>
+      <p style="font-size:14px;color:#666;line-height:1.7;">Tus respuestas fueron registradas. El equipo de Recursos Humanos las revisará y te compartirá los resultados en tu próxima sesión de desarrollo.</p>
+    </div>
+  </div>
+
+  <div class="screen" id="s4">
+    <div class="thanks">
+      <div class="t-icon" style="background:#FCEBEB;"><svg width="32" height="32" fill="none" stroke="#E24B4A" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></div>
+      <h2 style="font-size:20px;font-weight:600;margin-bottom:10px;">Algo salió mal</h2>
+      <p style="font-size:14px;color:#666;line-height:1.7;">No pudimos guardar tus respuestas. Por favor avisa a tu HRBP para que te comparta una nueva liga.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const DB='https://sheetdb.io/api/v1/vm1log6357x93';
+const CL={liderazgo:'Liderazgo',trabajo_equipo:'Trabajo en equipo',comunicacion:'Comunicación',resultados:'Orientación a resultados',agil:'Mentalidad ágil',datos:'Alfabetización en datos'};
+const QS=[
+  {c:'liderazgo',t:'scenario',
+   s:'Tienes tres gerentes directos. Al hacer una revisión informal del área, te das cuenta de que uno de ellos tiene un potencial de liderazgo significativamente mayor al rol que ocupa hoy — toma buenas decisiones, su equipo lo sigue y tiene visión estratégica. Nunca ha expresado interés explícito en crecer, pero tú lo ves claramente.',
+   q:'¿Qué haces?',
+   o:[
+     'Abro una conversación con él para compartirle lo que estoy observando, explorar si tiene interés en crecer y, si lo hay, co-construimos un plan de desarrollo con retos concretos que lo preparen para el siguiente nivel — sin prometerle nada que no dependa de mí',
+     'Lo pongo en proyectos de mayor visibilidad y complejidad para que se desarrolle en la práctica y para que otros líderes también lo conozcan — prefiero que el crecimiento se demuestre antes de tener una conversación formal',
+     'Espero a que él lo plantee — si no ha expresado interés en crecer, asumir que quiere más responsabilidad puede generarle presión innecesaria o expectativas que luego no se puedan cumplir'
+   ]},
+  {c:'liderazgo',t:'slider',
+   q:'¿Qué tan consistentemente inviertes tiempo en desarrollar a tus gerentes directos como líderes — no solo en revisar sus resultados sino en acompañar su crecimiento personal y profesional?',
+   l:'Casi no, me enfoco principalmente en los resultados del área',r:'Es una práctica sistemática con cada uno de ellos'},
+
+  {c:'trabajo_equipo',t:'scenario',
+   s:'Tu subdirección tiene un proyecto estratégico que depende de la colaboración de tres áreas distintas, ninguna de las cuales reporta a ti. A dos meses de inicio, el avance es mínimo — cada área prioriza sus propios compromisos y el proyecto transversal siempre queda al final. No hay un patrocinador ejecutivo claro.',
+   q:'¿Cómo destrабas esto?',
+   o:[
+     'Busco una conversación con el Director General o el patrocinador más cercano para formalizar el respaldo del proyecto, establecer un modelo de gobernanza con responsabilidades y fechas claras por área, y crear un mecanismo de rendición de cuentas que no dependa de mi influencia informal',
+     'Intensifico mi presencia en las reuniones de seguimiento de cada área para posicionar el proyecto en su agenda, entender qué los está frenando y construir el caso de negocio que justifique por qué este proyecto debe competir con sus prioridades actuales',
+     'Rediseño el proyecto en fases más pequeñas con entregables de valor rápido para cada área — si cada quien ve un beneficio concreto y cercano en participar, la colaboración se construye de forma más orgánica sin necesidad de forzarla'
+   ]},
+  {c:'trabajo_equipo',t:'slider',
+   q:'¿Qué tan efectivamente construyes relaciones de confianza con líderes de otras áreas — más allá de los proyectos en común — que te permitan mover agendas sin necesidad de autoridad formal?',
+   l:'Me cuesta, opero principalmente dentro de mi área',r:'Tengo relaciones sólidas que me permiten influir transversalmente'},
+
+  {c:'comunicacion',t:'scenario',
+   s:'El Director General te pide tu opinión sobre una decisión estratégica que ya está prácticamente tomada — cambiar el modelo de operación de tu área de forma significativa. Tú tienes información técnica y de negocio que sugiere que el cambio tiene riesgos importantes que no se han considerado. Expresar tu desacuerdo puede incomodar, pero no hacerlo puede costarle caro al área.',
+   q:'¿Qué haces?',
+   o:[
+     'Solicito un espacio breve antes de que la decisión se formalice para presentar los riesgos que identifico con datos concretos y una propuesta de mitigación — no para bloquear la decisión sino para asegurar que se tome con información completa y que yo pueda sostenerla con mi equipo',
+     'Comparto mi perspectiva en esa misma conversación de forma directa y concisa, con los riesgos más críticos y una alternativa — no quiero generar una dinámica de resistencia, pero tengo la responsabilidad de que esa información llegue antes de que se cierre la decisión',
+     'Acepto la decisión, documento mis observaciones internamente y me enfoco en preparar a mi equipo para implementarla bien — si ya está tomada, mi energía vale más en asegurar una buena ejecución que en un debate que ya no cambia el rumbo'
+   ]},
+  {c:'comunicacion',t:'slider',
+   q:'¿Qué tan cómodo te sientes expresando desacuerdo con decisiones de tu director o del Comité cuando tienes información que cambia el panorama?',
+   l:'Me cuesta mucho, prefiero alinearme y ejecutar',r:'Lo hago con naturalidad, siempre con datos y propuesta'},
+
+  {c:'resultados',t:'scenario',
+   s:'Al revisar los OKRs del área a mitad de año, detectas que tres iniciativas estratégicas van bien en actividad pero no están generando el impacto de negocio que prometían. El equipo está ocupado y comprometido, pero los resultados reales no están llegando.',
+   q:'¿Cómo lo atiendes?',
+   o:[
+     'Convoco una revisión estratégica del portafolio con mis gerentes — analizamos qué genera impacto real y qué no, y tomamos decisiones difíciles: pausar lo que no funciona aunque haya esfuerzo invertido y redirigir recursos hacia lo que sí mueve los indicadores de negocio',
+     'Rediseño los mecanismos de seguimiento con métricas más granulares y mayor frecuencia de revisión — si los equipos tienen más claridad sobre si van bien o no en tiempo real, pueden corregir el rumbo sin necesidad de una intervención estructural mayor',
+     'Hablo con cada gerente para entender qué está frenando el impacto en su área específica y acordamos ajustes por iniciativa — prefiero resolver con precisión por área que hacer un cambio estructural del portafolio a mitad de año'
+   ]},
+  {c:'resultados',t:'slider',
+   q:'¿Qué tan claramente están definidos los OKRs de tu área y qué tan efectivamente los cascadeas a tus gerentes para que cada equipo sepa cómo contribuye a los resultados estratégicos?',
+   l:'Están poco definidos o poco conectados hacia abajo',r:'Están muy claros y cada nivel sabe cómo contribuye'},
+
+  {c:'agil',t:'scenario',
+   s:'DEACERO anuncia un cambio organizacional que afecta directamente la estructura de tu subdirección — algunos roles cambian, una gerencia desaparece y aparece una nueva función que no existía. El anuncio se hace con 30 días de anticipación. Tu equipo está inquieto y hay mucha incertidumbre sobre el futuro de cada persona.',
+   q:'¿Cómo gestionas los 30 días?',
+   o:[
+     'Me reúno con cada gerente individualmente antes de cualquier comunicación grupal para darles contexto y alinear mensajes. Luego comunico al equipo con transparencia sobre lo que sé, lo que aún no está definido y cómo vamos a navegar la transición — con fechas claras de cuándo habrá más información',
+     'Preparo una comunicación grupal con el contexto del cambio, los próximos pasos y un espacio abierto de preguntas — prefiero que todos reciban la misma información al mismo tiempo para evitar que los rumores llenen los vacíos que deja la incertidumbre',
+     'Espero a tener más claridad sobre cómo queda la estructura definitiva antes de comunicar — prefiero dar información una sola vez y completa que generar más ansiedad con actualizaciones parciales que pueden cambiar en los próximos días'
+   ]},
+  {c:'agil',t:'slider',
+   q:'Cuando el contexto de negocio cambia de forma significativa, ¿qué tan rápido puedes pivotar la estrategia y el portafolio de tu área sin perder la cohesión y el enfoque del equipo?',
+   l:'Me cuesta, los cambios generan mucha fricción interna',r:'Lo hago con agilidad, el equipo me sigue con claridad'},
+
+  {c:'datos',t:'scenario',
+   s:'El Director General te pregunta en una reunión ejecutiva por qué el área de TyD tiene un alto nivel de actividad pero los indicadores de satisfacción del negocio siguen bajos. No tienes todos los datos en ese momento, pero sí tienes contexto y algunas hipótesis.',
+   q:'¿Cómo respondes?',
+   o:[
+     'Comparto las hipótesis que tengo con transparencia, señalo qué datos me faltan para confirmarlas y me comprometo a presentar un análisis fundamentado en 48-72 horas — aporto lo que sé en este momento sin llegar a conclusiones que todavía no puedo sostener con evidencia',
+     'Respondo con lo que sé en ese momento de forma directa y honesta, aunque sea parcial — prefiero dar una perspectiva incompleta pero inmediata que pedir tiempo y que el Director General perciba que no tengo visibilidad sobre lo que pasa en mi área',
+     'Pido tiempo para revisar los datos con mi equipo antes de responder — prefiero llegar con información sólida y bien analizada que especular en una reunión ejecutiva donde las conclusiones sin evidencia pueden generar percepciones equivocadas'
+   ]},
+  {c:'datos',t:'slider',
+   q:'¿Qué tan madura es la cultura de toma de decisiones basada en datos en tu área — tus gerentes y sus equipos usan datos de forma sistemática o las decisiones dependen principalmente del criterio personal?',
+   l:'Depende mucho del criterio personal, los datos son secundarios',r:'Los datos son el punto de partida de la mayoría de las decisiones'}
+];
+
+let cq=0,ans={},col={};
+function go(){
+  const n=document.getElementById('i-n').value.trim(),a=document.getElementById('i-a').value.trim(),p=document.getElementById('i-p').value.trim();
+  if(!n||!a||!p){document.getElementById('e0').style.display='block';return;}
+  document.getElementById('e0').style.display='none';
+  col={n,a,p};cq=0;ans={};render();show('s1');
+}
+function render(){
+  const q=QS[cq],tot=QS.length;
+  document.getElementById('pf').style.width=Math.round((cq/tot)*100)+'%';
+  document.getElementById('pc').textContent=CL[q.c]||q.c;
+  document.getElementById('pn').textContent=(cq+1)+' / '+tot;
+  document.getElementById('e1').style.display='none';
+  const tb={scenario:'Escenario',quiz:'Pregunta',slider:'Automedición'};
+  const tc={scenario:'bs',quiz:'bq',slider:'bl'};
+  let h=`<div class="q-card"><span class="badge ${tc[q.t]}">${tb[q.t]}</span>`;
+  if(q.t==='scenario'){
+    h+=`<div class="sbox">${q.s}</div><p class="q-text">${q.q}</p><div class="opts">`;
+    q.o.forEach((o,i)=>{h+=`<button class="opt${ans[cq]===i?' sel':''}" onclick="so(${i})">${o}</button>`;});
+    h+=`</div>`;
+  }else if(q.t==='quiz'){
+    h+=`<p class="q-text">${q.q}</p><div class="opts">`;
+    q.o.forEach((o,i)=>{h+=`<button class="opt${ans[cq]===i?' sel':''}" onclick="so(${i})">${o}</button>`;});
+    h+=`</div>`;
+  }else{
+    const v=ans[cq]!==undefined?ans[cq]:3;
+    if(ans[cq]===undefined)ans[cq]=3;
+    h+=`<p class="q-text">${q.q}</p><div class="sv" id="sv">${v}</div><input type="range" min="1" max="5" step="1" value="${v}" oninput="document.getElementById('sv').textContent=this.value;ans[cq]=parseInt(this.value);"><div class="sl-labels"><span>${q.l}</span><span>${q.r}</span></div>`;
+  }
+  h+=`</div>`;
+  document.getElementById('qa').innerHTML=h;
+  document.getElementById('bp').style.visibility=cq===0?'hidden':'visible';
+  document.getElementById('bn').textContent=cq===QS.length-1?'Enviar respuestas →':'Siguiente →';
+}
+function so(i){ans[cq]=i;document.querySelectorAll('.opt').forEach((b,idx)=>b.classList.toggle('sel',idx===i));}
+function prev(){if(cq>0){cq--;render();}}
+function nxt(){
+  const q=QS[cq];
+  if(q.t!=='slider'&&ans[cq]===undefined){document.getElementById('e1').style.display='block';return;}
+  if(cq<QS.length-1){cq++;render();}else{send();}
+}
+async function send(){
+  show('s2');
+  const comps=[...new Set(QS.map(q=>q.c))].join(',');
+  const pl={timestamp:new Date().toISOString(),nombre:col.n,area:col.a,puesto:col.p,nivel:'ll',competencias:comps,respuestas:JSON.stringify(QS.map((q,i)=>({comp:q.c,type:q.t,answer:ans[i]!==undefined?ans[i]:null})))};
+  try{
+    const r=await fetch(DB,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:pl})});
+    if(r.ok)show('s3');else show('s4');
+  }catch(e){show('s4');}
+}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+</script>
+</body>
+</html>
