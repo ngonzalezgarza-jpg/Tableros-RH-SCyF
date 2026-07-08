@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rotación SCyF</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a1a;min-height:100vh;}
+  .topbar{background:#fff;border-bottom:1px solid #e5e5e0;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:10;}
+  .logo-dot{width:10px;height:10px;border-radius:50%;background:#D85A30;}
+  .topbar-title{font-size:15px;font-weight:500;color:#1a1a1a;margin-left:12px;}
+  .topbar-left{display:flex;align-items:center;}
+  .file-badge{display:flex;align-items:center;gap:8px;font-size:12px;color:#666;background:#f0efeb;border-radius:8px;padding:5px 12px;}
+  .file-badge svg{width:14px;height:14px;color:#1D9E75;flex-shrink:0;}
+  .btn-cambiar{font-size:11px;color:#888;background:none;border:none;cursor:pointer;text-decoration:underline;margin-left:4px;}
+  .drop-zone{border:2px dashed #d0cfc9;border-radius:16px;background:#fff;padding:3rem 2rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;margin-bottom:1.5rem;}
+  .drop-zone:hover,.drop-zone.drag-over{border-color:#534AB7;background:#f4f3fe;}
+  .drop-zone svg{width:40px;height:40px;color:#aaa;margin:0 auto 12px;display:block;}
+  .drop-zone p{font-size:14px;color:#666;margin-bottom:6px;}
+  .drop-zone span{font-size:12px;color:#aaa;}
+  .main{padding:1.5rem 2rem 3rem;max-width:1100px;margin:0 auto;}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center;}
+  .filters label{font-size:12px;color:#888;}
+  .filters select{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #e0e0da;background:#fff;color:#1a1a1a;cursor:pointer;}
+  .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.25rem;}
+  .kpi{background:#fff;border:1px solid #e5e5e0;border-radius:12px;padding:.875rem 1.125rem;}
+  .kpi-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+  .kpi-val{font-size:28px;font-weight:500;color:#1a1a1a;letter-spacing:-0.02em;line-height:1;}
+  .kpi-sub{font-size:11px;color:#aaa;margin-top:4px;}
+  .kpi-accent{border-top:3px solid #D85A30;}
+  .kpi-accent2{border-top:3px solid #1D9E75;}
+  .kpi-accent3{border-top:3px solid #534AB7;}
+  .charts-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px;}
+  .chart-card{background:#fff;border:1px solid #e5e5e0;border-radius:12px;padding:1.125rem;cursor:pointer;transition:border-color .15s;}
+  .chart-card:hover{border-color:#534AB7;}
+  .chart-card.clickable-hint::after{content:'Haz clic en la gráfica para ver el detalle';display:block;font-size:10px;color:#bbb;margin-top:6px;text-align:right;}
+  .chart-label{font-size:11px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;font-size:11px;color:#666;}
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .legend-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0;}
+  .bar-list{display:grid;gap:6px;}
+  .bar-row{display:flex;align-items:center;gap:8px;cursor:pointer;border-radius:6px;padding:2px 4px;transition:background .12s;}
+  .bar-row:hover{background:#f0efeb;}
+  .bar-name{color:#666;min-width:155px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bar-wrap{flex:1;background:#f0efeb;border-radius:4px;height:9px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:4px;transition:width .3s;}
+  .bar-count{font-size:11px;color:#aaa;min-width:22px;text-align:right;}
+  .nb-wrap{display:grid;grid-template-columns:auto 1fr;gap:6px;}
+  .nb-axis-y{display:flex;flex-direction:column;justify-content:space-around;font-size:9px;color:#aaa;text-align:right;padding-bottom:20px;}
+  .nb-right{display:flex;flex-direction:column;gap:3px;}
+  .nb-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,52px);gap:3px;}
+  .nb-cell{border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px;cursor:pointer;transition:opacity .15s;}
+  .nb-cell:hover{opacity:.8;}
+  .nb-cell-count{font-size:18px;font-weight:500;}
+  .nb-cell-label{font-size:8px;text-align:center;line-height:1.2;opacity:.8;}
+  .nb-axis-x{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;}
+  .nb-axis-x span{font-size:9px;color:#aaa;text-align:center;}
+
+  /* Tabla de detalle */
+  .detalle-card{background:#fff;border:1px solid #e5e5e0;border-radius:12px;margin-bottom:12px;overflow:hidden;transition:box-shadow .2s;}
+  .detalle-card.highlight{box-shadow:0 0 0 2px #534AB7;}
+  .detalle-header{display:flex;align-items:center;justify-content:space-between;padding:.875rem 1.125rem;border-bottom:1px solid #f0efeb;flex-wrap:wrap;gap:8px;}
+  .detalle-title{font-size:11px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:.05em;}
+  .detalle-filtro{font-size:12px;color:#534AB7;font-weight:500;background:#EEEDFE;border-radius:6px;padding:2px 10px;display:none;}
+  .detalle-filtro.visible{display:inline-block;}
+  .btn-limpiar{font-size:11px;color:#888;background:none;border:1px solid #e0e0da;border-radius:6px;padding:2px 8px;cursor:pointer;}
+  .btn-limpiar:hover{background:#f5f5f3;}
+  .detalle-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .detalle-count{font-size:11px;color:#aaa;}
+  .detalle-search{font-size:12px;padding:4px 10px;border-radius:8px;border:1px solid #e0e0da;background:#f5f5f3;color:#1a1a1a;width:180px;}
+  .tabla-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  thead th{text-align:left;padding:8px 12px;font-size:10px;font-weight:500;color:#aaa;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #f0efeb;white-space:nowrap;background:#fafaf8;}
+  tbody td{padding:9px 12px;border-bottom:1px solid #f7f7f5;color:#333;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover td{background:#fafaf8;}
+  .tag{display:inline-block;font-size:10px;border-radius:4px;padding:2px 7px;font-weight:500;}
+  .tag-Forzada{background:#FCEBEB;color:#791F1F;}
+  .tag-Voluntaria{background:#EAF3DE;color:#27500A;}
+  .tag-Jubilación,.tag-Jubilacion{background:#EEEDFE;color:#3C3489;}
+  .pagination{display:flex;align-items:center;justify-content:space-between;padding:.625rem 1.125rem;border-top:1px solid #f0efeb;font-size:12px;color:#aaa;}
+  .pag-btns{display:flex;gap:4px;}
+  .pag-btn{padding:3px 10px;border-radius:6px;border:1px solid #e0e0da;background:#fff;cursor:pointer;font-size:11px;color:#555;}
+  .pag-btn:hover{background:#f5f5f3;}
+  .pag-btn:disabled{opacity:.35;cursor:default;}
+  .empty-table{text-align:center;padding:2rem;color:#bbb;font-size:13px;}
+  @media(max-width:700px){.kpis{grid-template-columns:repeat(2,1fr);}.charts-row{grid-template-columns:1fr;}.main{padding:1rem;}}
+  .rot-section{background:#fff;border:1px solid #e5e5e0;border-radius:12px;padding:1.125rem;margin-bottom:12px;}
+  .rot90-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px;}
+  .rot90-item{background:#f8f8f6;border-radius:8px;padding:.75rem 1rem;text-align:center;}
+  .rot90-val{font-size:24px;font-weight:500;color:#1a1a1a;letter-spacing:-0.02em;}
+  .rot90-label{font-size:11px;color:#888;margin-top:3px;}
+  .costo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:8px;}
+  .costo-item{background:#f8f8f6;border-radius:8px;padding:.75rem 1rem;}
+  .costo-val{font-size:20px;font-weight:500;color:#D85A30;letter-spacing:-0.02em;}
+  .costo-label{font-size:11px;color:#888;margin-top:3px;}
+  .costo-sub{font-size:10px;color:#bbb;margin-top:2px;}
+  .riesgo-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+  .riesgo-table th{text-align:left;padding:7px 10px;font-size:10px;font-weight:500;color:#aaa;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #f0efeb;background:#fafaf8;}
+  .riesgo-table td{padding:8px 10px;border-bottom:1px solid #f7f7f5;vertical-align:middle;}
+  .riesgo-table tr:last-child td{border-bottom:none;}
+  .riesgo-badge{display:inline-block;font-size:10px;border-radius:4px;padding:2px 8px;font-weight:500;}
+  .riesgo-alto{background:#FCEBEB;color:#791F1F;}
+  .riesgo-medio{background:#FAEEDA;color:#633806;}
+  .riesgo-bajo{background:#EAF3DE;color:#27500A;}
+  .bar-inline{display:inline-block;height:6px;border-radius:3px;vertical-align:middle;margin-left:6px;}
+  .rot-title{font-size:11px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.875rem;}
+  .rot-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
+  .rot-col{display:flex;flex-direction:column;gap:6px;}
+  .rot-col-title{font-size:10px;font-weight:500;color:#aaa;text-transform:uppercase;letter-spacing:.05em;padding-bottom:4px;border-bottom:2px solid #f0efeb;margin-bottom:2px;}
+  .rot-item{background:#f8f8f6;border-radius:8px;padding:.625rem .875rem;display:flex;justify-content:space-between;align-items:center;}
+  .rot-item-label{font-size:11px;color:#666;}
+  .rot-item-val{font-size:18px;font-weight:500;color:#1a1a1a;letter-spacing:-0.02em;}
+  .rot-item-val.red{color:#D85A30;}
+  .rot-item-val.green{color:#1D9E75;}
+  .rot-item-val.blue{color:#534AB7;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-dot"></div>
+    <span class="topbar-title">Rotación SCyF</span>
+  </div>
+  <div id="file-badge-wrap"></div>
+</div>
+
+<div class="main">
+<div id="drop-area" style="display:none;"></div>
+
+  <div class="filters" id="filters-bar" style="display:none;">
+    <label>Filtrar:</label>
+    <select id="f-anio"  onchange="initFilters();render()"><option value="">Todos los años</option></select>
+    <select id="f-tipo"  onchange="render()"><option value="">Todos los tipos</option></select>
+    <select id="f-dir"   onchange="renderRotacion();render()"><option value="">Todas las direcciones</option></select>
+    <select id="f-nivel" onchange="render()"><option value="">Todos los niveles</option></select>
+  </div>
+
+  <div class="kpis" id="kpis" style="display:none;">
+    <div class="kpi kpi-accent"><div class="kpi-label">Total bajas</div><div class="kpi-val" id="k-total">—</div><div class="kpi-sub" id="k-rango">—</div></div>
+    <div class="kpi kpi-accent2"><div class="kpi-label">Voluntarias</div><div class="kpi-val" id="k-vol">—</div><div class="kpi-sub" id="k-pct-vol">—</div></div>
+    <div class="kpi kpi-accent"><div class="kpi-label">Forzadas</div><div class="kpi-val" id="k-for">—</div><div class="kpi-sub" id="k-pct-for">—</div></div>
+    <div class="kpi kpi-accent3"><div class="kpi-label">Jubilaciones</div><div class="kpi-val" id="k-jub">—</div><div class="kpi-sub" id="k-pct-jub">—</div></div>
+  </div>
+
+  <div id="charts-area"></div>
+</div>
+
+<script>
+const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const COLORS={'Forzada':'#D85A30','Voluntaria':'#1D9E75','Jubilación':'#534AB7','Jubilacion':'#534AB7','Empleado':'#378ADD','Gerente':'#D85A30','Subdirector':'#534AB7','Director':'#639922'};
+// Matriz DEACERO — orden visual de la cuadrícula (fila por fila, de arriba a abajo)
+// Fila 1 (Excede Competencias): 4, 7, 9
+// Fila 2 (Cumple Competencias): 2, 5, 8
+// Fila 3 (Requiere Competencias): 1, 3, 6
+const NB_CELLS=[
+  // Fila 1 — Excede Expectativas (competencias)
+  {pot:0,des:0,num:4,label:'4 Talento\nEmergente\nCompetencias',bg:'#F5C518',tc:'#5a3e00'},
+  {pot:0,des:1,num:7,label:'7 Top Talent\nCompetencias',bg:'#2ECC40',tc:'#0a3d0a'},
+  {pot:0,des:2,num:9,label:'9 Top\nTalent',bg:'#1a7a1a',tc:'#ffffff'},
+  // Fila 2 — Cumple Expectativas (competencias)
+  {pot:1,des:0,num:2,label:'2 Requiere\nMejora\nDesempeño',bg:'#F5C518',tc:'#5a3e00'},
+  {pot:1,des:1,num:5,label:'5 Talento\nSólido',bg:'#2196F3',tc:'#ffffff'},
+  {pot:1,des:2,num:8,label:'8 Top Talent\nDesempeño',bg:'#2ECC40',tc:'#0a3d0a'},
+  // Fila 3 — Requiere Mejora (competencias)
+  {pot:2,des:0,num:1,label:'1 Low\nPerformer',bg:'#E53935',tc:'#ffffff'},
+  {pot:2,des:1,num:3,label:'3 Requiere\nMejora\nCompetencias',bg:'#F5C518',tc:'#5a3e00'},
+  {pot:2,des:2,num:6,label:'6 Talento\nEmergente\nDesempeño',bg:'#F5C518',tc:'#5a3e00'},
+];
+
+let DATA=[],charts={},fileName='';
+let paginaActual=1,porPagina=15,busqueda='';
+let detalleFilter=null;
+let detalleResultado=null;
+
+const HEADCOUNT=328;
+const HC_DIR={"Administración y Finanzas":46,"Fiscal":12,"Jurídico":9,"Relaciones Humanas":55,"Auditoría":7,"Transformación y Digital":195};
+const AÑO_ACTUAL=new Date().getFullYear();
+
+function excelDateToJS(v){
+  if(typeof v==='number'){
+    // Usar UTC para evitar desfase por zona horaria
+    const ms=Math.round((v-25569)*86400*1000);
+    const d=new Date(ms);
+    return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate());
+  }
+  if(typeof v==='string'){
+    if(v.includes('/')) {const[d,m,y]=v.split('/');return new Date(+y,+m-1,+d);}
+    if(v.includes('-')) {const p=v.split('-');return p[0].length===4?new Date(+p[0],+p[1]-1,+p[2]):new Date(+p[2],+p[1]-1,+p[0]);}
+  }
+  return null;
+}
+function formatDate(dt){if(!dt)return'—';return dt.getDate().toString().padStart(2,'0')+'/'+(dt.getMonth()+1).toString().padStart(2,'0')+'/'+dt.getFullYear();}
+function getYear(r){return r._date?r._date.getFullYear():null;}
+function getMonthKey(r){return r._date?r._date.getFullYear()+'-'+String(r._date.getMonth()+1).padStart(2,'0'):null;}
+function getMonthLabel(k){const[y,m]=k.split('-');return MES[+m-1]+' '+y.slice(2);}
+
+function normalizeNB(raw){
+  const r=(raw||'').toString().toLowerCase().trim();
+  if(!r||r==='na'||r==='sin información'||r==='sin informacion'||r===''||r==='-') return null;
+  // Detectar por número al inicio del string
+  const num=parseInt(r);
+  if(!isNaN(num)&&num>=1&&num<=9){
+    const map={1:{pot:2,des:0},2:{pot:1,des:0},3:{pot:2,des:1},4:{pot:0,des:0},5:{pot:1,des:1},6:{pot:2,des:2},7:{pot:0,des:1},8:{pot:1,des:2},9:{pot:0,des:2}};
+    return map[num]||null;
+  }
+  // Detectar por nombre
+  if(r.includes('low performer')) return{pot:2,des:0};
+  if(r.includes('talento sólido')||r.includes('talento solido')) return{pot:1,des:1};
+  if(r.includes('top talent')&&r.includes('competencia')) return{pot:0,des:1};
+  if(r.includes('top talent')&&r.includes('desempeño')) return{pot:1,des:2};
+  if(r.includes('top talent')) return{pot:0,des:2};
+  if(r.includes('talento emergente')&&r.includes('competencia')) return{pot:0,des:0};
+  if(r.includes('talento emergente')&&r.includes('desempeño')) return{pot:2,des:2};
+  if(r.includes('requiere mejora')&&r.includes('desempeño')) return{pot:1,des:0};
+  if(r.includes('requiere mejora')&&r.includes('competencia')) return{pot:2,des:1};
+  if(r.includes('requiere mejora')) return{pot:2,des:0};
+  return null;
+}
+
+const DIRS_EXCLUIDAS=['Asuntos Corporativos','Fundación DEACERO','Fundacion DEACERO'];
+const AÑOS_EXCLUIDOS=[2024];
+const DIRS_POR_AÑO={'2026':['Planeación Estrategica','Planeacion Estrategica']};
+
+const RAW_DATA=[
+{nombre:'Carlos Alberto Rodríguez Maillard',fnac:'20/04/1974',fingreso:'01/06/2021',fbaja:'15/01/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Subdirector',motivo:'Productividad',nb:'2',tab:'0.8492007034599951',sueldo:257853.00,genero:'H'},
+{nombre:'Karina Jannet Reyna Lozano',fnac:'14/10/1979',fingreso:'02/05/2022',fbaja:'15/01/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Balance de vida',nb:'5',tab:'0.969893389030148',sueldo:58742.56,genero:'M'},
+{nombre:'Miguel Angel Espinosa Segovia',fnac:'06/03/1999',fingreso:'01/08/2022',fbaja:'24/01/2025',tipo:'Voluntaria',dir:'Auditoría',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'5',tab:'0.844644021955294',sueldo:31854.06,genero:'H'},
+{nombre:'Pamela Estefania Lira Carrillo',fnac:'09/07/1989',fingreso:'16/08/2022',fbaja:'31/01/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'5',tab:'0.775608057803909',sueldo:81258.90,genero:'M'},
+{nombre:'Ramon Alejandro Gaytan Salazar',fnac:'22/11/1988',fingreso:'20/09/2016',fbaja:'31/01/2025',tipo:'Forzada',dir:'Administración y Finanzas',nivel:'Empleado',motivo:'Bajo desempeño',nb:'1',tab:'0.6862674275807259',sueldo:57000.00,genero:'H'},
+{nombre:'MISAEL SEBASTIÁN SARMIENTO SANCHEZ',fnac:'08/11/1997',fingreso:'16/08/2022',fbaja:'31/01/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'5',tab:'0.805370857341737',sueldo:41652.17,genero:'H'},
+{nombre:'Jose Rosario Lopez Hernandez',fnac:'02/02/1978',fingreso:'06/06/2019',fbaja:'13/12/2024',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'5',tab:'0.9760968199980179',sueldo:59118.28,genero:'H'},
+{nombre:'Ronaldo  Castillo Arias',fnac:'11/07/1998',fingreso:'18/10/2021',fbaja:'31/01/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'5',tab:'0.912567382933797',sueldo:29388.32,genero:'H'},
+{nombre:'Obed  Flores Moreno',fnac:'10/07/1962',fingreso:'17/11/2006',fbaja:'31/01/2025',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Productividad',nb:'No aplica',tab:'1.24351209296595',sueldo:30283.25,genero:'H'},
+{nombre:'Jose Francisco Arevalo Rivera',fnac:'20/12/1966',fingreso:'16/03/2010',fbaja:'31/01/2025',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Productividad',nb:'No aplica',tab:'1.3325086044599999',sueldo:50252.90,genero:'H'},
+{nombre:'MIGUEL ANGEL CARREON VIERA',fnac:'14/09/1995',fingreso:'04/11/2024',fbaja:'05/02/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Balance de vida',nb:'5',tab:'0.917862252987354',sueldo:47470.00,genero:'H'},
+{nombre:'Sergio Enrique Yarza Acuña',fnac:'02/02/1980',fingreso:'16/08/2021',fbaja:'17/02/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'1',tab:'0.785294372607093',sueldo:65224.98,genero:'H'},
+{nombre:'BRANDON OMAR CANTÚ LOZANO',fnac:'08/03/1999',fingreso:'01/07/2022',fbaja:'21/02/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'8',tab:'0.989936037743145',sueldo:51197.51,genero:'H'},
+{nombre:'José Martín Chavez Segura',fnac:'31/10/1989',fingreso:'01/06/2022',fbaja:'07/02/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'5',tab:'0.6367078592700061',sueldo:66706.61,genero:'H'},
+{nombre:'Elida Raquel Delgado Lara',fnac:'24/08/1985',fingreso:'16/05/2023',fbaja:'28/02/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'3',tab:'0.902933214741482',sueldo:46697.90,genero:'M'},
+{nombre:'Carlos Enrique Delgado Alvarado',fnac:'25/03/1978',fingreso:'16/07/2012',fbaja:'25/02/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Gerente',motivo:'Bajo desempeño',nb:'1',tab:'0.7473490272628609',sueldo:102605.79,genero:'H'},
+{nombre:'Jose Alberto De Aguero Gaona',fnac:'15/04/1986',fingreso:'28/08/2017',fbaja:'15/04/2025',tipo:'Forzada',dir:'Jurídico',nivel:'Gerente',motivo:'Productividad',nb:'3',tab:'0.714671903450933',sueldo:115000.00,genero:'H'},
+{nombre:'Jesus Alejandro Garcia Rosales',fnac:'28/11/1983',fingreso:'16/04/2015',fbaja:'01/04/2025',tipo:'Forzada',dir:'Jurídico',nivel:'Empleado',motivo:'Productividad',nb:'3',tab:'0.8230852014775959',sueldo:58378.14,genero:'H'},
+{nombre:'David Alejandro Escalante Garcia',fnac:'30/12/1983',fingreso:'27/06/2016',fbaja:'01/04/2025',tipo:'Forzada',dir:'Jurídico',nivel:'Gerente',motivo:'Productividad',nb:'5',tab:'0.7263496536604189',sueldo:99722.72,genero:'H'},
+{nombre:'Aaron Osvaldo Rangel Vargas',fnac:'16/06/1999',fingreso:'17/12/2021',fbaja:'14/03/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'8',tab:'0.9668847348155499',sueldo:31137.56,genero:'H'},
+{nombre:'Diana Guadalupe Garcia Ruiz',fnac:'28/06/1975',fingreso:'15/05/2006',fbaja:'25/03/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'1',tab:'0.993492583819755',sueldo:70464.46,genero:'M'},
+{nombre:'IVETTE CATALINA ALVAREZ CANTÚ',fnac:'05/12/1976',fingreso:'01/12/2021',fbaja:'19/03/2025',tipo:'Voluntaria',dir:'Relaciones Humanas',nivel:'Gerente',motivo:'Balance de vida',nb:'5',tab:'1.94585906437695',sueldo:138012.00,genero:'M'},
+{nombre:'Alejandro  Lopez Fernandez',fnac:'20/03/1969',fingreso:'17/09/2007',fbaja:'14/03/2025',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Gerente',motivo:'Productividad',nb:'3',tab:'0.652255444666624',sueldo:144175.85,genero:'H'},
+{nombre:'Pedro  Almanza Rocha',fnac:'16/05/1997',fingreso:'01/08/2022',fbaja:'27/03/2025',tipo:'Voluntaria',dir:'Auditoría',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'5',tab:'0.7946601558630251',sueldo:48129.39,genero:'H'},
+{nombre:'Victor Alejandro Delgado Rodríguez',fnac:'27/03/1996',fingreso:'17/09/2021',fbaja:'25/04/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'1',tab:'0.6485632913177111',sueldo:46000.00,genero:'H'},
+{nombre:'Daniela Sobrevilla González',fnac:'15/09/1997',fingreso:'01/08/2024',fbaja:'30/04/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'TSTR',tab:'0.944424264438794',sueldo:57200.00,genero:'M'},
+{nombre:'Luis Angel Andrade Garcia',fnac:'29/05/1989',fingreso:'19/05/2023',fbaja:'15/05/2025',tipo:'Voluntaria',dir:'Fiscal',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'1',tab:'0.9755153258325571',sueldo:69189.40,genero:'H'},
+{nombre:'Elías Rogelio Hernández Vigil',fnac:'28/06/1990',fingreso:'20/12/2021',fbaja:'21/05/2025',tipo:'Voluntaria',dir:'Administración y Finanzas',nivel:'Empleado',motivo:'Balance de vida',nb:'3',tab:'0.9447119815018471',sueldo:67004.64,genero:'H'},
+{nombre:'GUSTAVO VALDESPINO PEREZ',fnac:'25/11/1976',fingreso:'22/07/2024',fbaja:'19/05/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Ética',nb:'9',tab:'1.19063072693952',sueldo:124740.00,genero:'H'},
+{nombre:'Jesus Manuel Villarreal Celada',fnac:'28/08/1980',fingreso:'15/04/2019',fbaja:'30/05/2025',tipo:'Forzada',dir:'Administración y Finanzas',nivel:'Subdirector',motivo:'Productividad',nb:'5',tab:'0.939645441795231',sueldo:391930.81,genero:'H'},
+{nombre:'JUAN FRANCISCO FLORES ROCHA',fnac:'05/03/1980',fingreso:'01/12/2024',fbaja:'30/05/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Gerente',motivo:'Productividad',nb:'2',tab:'0.982413602381411',sueldo:158083.12,genero:'H'},
+{nombre:'JOSÉ ARMANDO FLORES MARTÍNEZ',fnac:'29/08/1984',fingreso:'01/12/2024',fbaja:'30/05/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Productividad',nb:'TSTR',tab:'1.11855907919766',sueldo:92905.28,genero:'H'},
+{nombre:'Michel Quezada Hernandez',fnac:'27/09/1972',fingreso:'22/11/1999',fbaja:'30/05/2025',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Productividad',nb:'4',tab:'1.13840930434154',sueldo:94554.00,genero:'M'},
+{nombre:'Jose Sauceda Castillo',fnac:'23/06/1980',fingreso:'01/02/2018',fbaja:'30/05/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Productividad',nb:'5',tab:'0.89900307102995',sueldo:54449.02,genero:'H'},
+{nombre:'EMMANUEL  MUÑIZ ALVARADO',fnac:'15/11/1986',fingreso:'05/04/2021',fbaja:'02/06/2025',tipo:'Voluntaria',dir:'Administración y Finanzas',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'5',tab:'0.964371222519203',sueldo:80098.74,genero:'H'},
+{nombre:'Andres Alejandro Piña Cerda',fnac:'06/03/1998',fingreso:'01/12/2020',fbaja:'06/06/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'1',tab:'0.7771497351018979',sueldo:40192.63,genero:'H'},
+{nombre:'ISABEL ALEJANDRA RANGEL VALLEJO',fnac:'11/10/2000',fingreso:'02/01/2024',fbaja:'30/06/2025',tipo:'Voluntaria',dir:'Planeación Estrategica',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'3',tab:'0.737411502664863',sueldo:27810.00,genero:'M'},
+{nombre:'Andres Eugenio Galindo Maytorena',fnac:'11/03/1994',fingreso:'01/04/2021',fbaja:'30/06/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Gerente',motivo:'Productividad',nb:'4',tab:'1.22297361789859',sueldo:128128.50,genero:'H'},
+{nombre:'Yaglimir Madeleyne Hernandez Aguas',fnac:'03/05/1991',fingreso:'18/05/2020',fbaja:'30/06/2025',tipo:'Voluntaria',dir:'Administración y Finanzas',nivel:'Empleado',motivo:'Balance de vida',nb:'5',tab:'0.864690663508445',sueldo:61329.05,genero:'M'},
+{nombre:'Manuel Alexander Hernandez Garcia',fnac:'26/08/1990',fingreso:'08/03/2021',fbaja:'30/06/2025',tipo:'Voluntaria',dir:'Administración y Finanzas',nivel:'Empleado',motivo:'Balance de vida',nb:'8',tab:'0.8437423793813269',sueldo:59843.27,genero:'H'},
+{nombre:'Daniela  Nocker Franco',fnac:'11/03/1993',fingreso:'16/03/2023',fbaja:'30/06/2025',tipo:'Voluntaria',dir:'Administración y Finanzas',nivel:'Empleado',motivo:'Home Office',nb:'2',tab:'0.690281913453729',sueldo:35700.00,genero:'M'},
+{nombre:'Kevin Azael Alanis Carrizales',fnac:'16/08/1993',fingreso:'19/09/2022',fbaja:'11/07/2025',tipo:'Voluntaria',dir:'Administración y Finanzas',nivel:'Empleado',motivo:'Home Office',nb:'5',tab:'0.7809117389955721',sueldo:55386.95,genero:'H'},
+{nombre:'Roberto Francisco Doñez Garza',fnac:'06/06/1994',fingreso:'01/12/2021',fbaja:'30/06/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'2',tab:'0.967274255561742',sueldo:36478.81,genero:'H'},
+{nombre:'Iñaki Uscanga ZaIñaki Uscanga Zapicopico',fnac:'19/01/1986',fingreso:'02/02/2021',fbaja:'15/07/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'5',tab:'0.911368092176551',sueldo:75696.41,genero:'H'},
+{nombre:'Adrian Ricardo Lucio Velázquez',fnac:'29/01/1990',fingreso:'02/06/2025',fbaja:'21/07/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'TSTR',tab:'0.9545779969771689',sueldo:36000.00,genero:'H'},
+{nombre:'Cynthia Gutiérrez Tijerina',fnac:'',fingreso:'',fbaja:'31/07/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Home Office',nb:'5',tab:'0.93',sueldo:0.00,genero:'M'},
+{nombre:'Raul Alejandro Coronado Puente',fnac:'16/01/1982',fingreso:'04/05/2020',fbaja:'08/08/2025',tipo:'Voluntaria',dir:'Administración y Finanzas',nivel:'Empleado',motivo:'Home Office',nb:'3',tab:'1.0180817048755',sueldo:72208.46,genero:'H'},
+{nombre:'Javier Guajardo Escamilla',fnac:'16/05/1981',fingreso:'03/11/2003',fbaja:'11/08/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Gerente',motivo:'Bajo desempeño',nb:'6',tab:'0.876249899013752',sueldo:141000.00,genero:'H'},
+{nombre:'JULIETTE AGNÈS BARBAY X',fnac:'20/10/1995',fingreso:'08/07/2025',fbaja:'08/08/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Balance de vida',nb:'TSTR',tab:'0.931561296733325',sueldo:30000.00,genero:'M'},
+{nombre:'Alejandro García Gil',fnac:'21/04/1997',fingreso:'18/05/2023',fbaja:'29/08/2025',tipo:'Voluntaria',dir:'Planeación Estrategica',nivel:'Empleado',motivo:'Balance de vida',nb:'5',tab:'0.832986587685713',sueldo:69186.20,genero:'H'},
+{nombre:'Hilario Guillermo Gallegos Duran',fnac:'20/12/1980',fingreso:'16/01/2020',fbaja:'05/09/2025',tipo:'Voluntaria',dir:'Administración y Finanzas',nivel:'Gerente',motivo:'Salario y Mejores Prestaciones',nb:'9',tab:'1.2733412278684701',sueldo:204897.16,genero:'H'},
+{nombre:'LETICIA YAMILETH VILLARREAL PARDO',fnac:'25/10/1992',fingreso:'20/01/2025',fbaja:'05/09/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Ética',nb:'TSTR',tab:'0.811316432498472',sueldo:85000.00,genero:'M'},
+{nombre:'José Heriberto Tenorio Serrano',fnac:'28/10/1999',fingreso:'17/10/2022',fbaja:'30/09/2025',tipo:'Forzada',dir:'Auditoría',nivel:'Empleado',motivo:'Productividad',nb:'5',tab:'0.764820758730036',sueldo:39555.00,genero:'H'},
+{nombre:'Gerardo Garza Guerra',fnac:'26/12/1982',fingreso:'05/06/2006',fbaja:'30/09/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'5',tab:'1.04461596593632',sueldo:74090.43,genero:'H'},
+{nombre:'Ivonne Sarai Mares Villalobos',fnac:'25/09/1992',fingreso:'07/05/2021',fbaja:'01/10/2025',tipo:'Voluntaria',dir:'Fiscal',nivel:'Empleado',motivo:'Home Office',nb:'5',tab:'1.02369703634774',sueldo:72606.74,genero:'M'},
+{nombre:'Diego Adrian Regalado Orozco',fnac:'16/06/2000',fingreso:'01/09/2023',fbaja:'23/10/2025',tipo:'Forzada',dir:'Auditoría',nivel:'Empleado',motivo:'Productividad',nb:'5',tab:'0.848991183172076',sueldo:51420.00,genero:'H'},
+{nombre:'Noemi Valeria Jimenez Villagomez',fnac:'06/05/1992',fingreso:'10/09/2018',fbaja:'24/10/2025',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Productividad',nb:'5',tab:'0.989958350957335',sueldo:70213.79,genero:'M'},
+{nombre:'Violeta Azalia Lozano Quintanilla',fnac:'20/12/1973',fingreso:'03/09/2018',fbaja:'31/10/2025',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Productividad',nb:'8',tab:'0.8912412763723699',sueldo:168085.43,genero:'M'},
+{nombre:'DIANA LAURA HERNÁNDEZ ZETINA',fnac:'03/07/1994',fingreso:'17/07/2023',fbaja:'31/10/2025',tipo:'Forzada',dir:'Auditoría',nivel:'Empleado',motivo:'Productividad',nb:'2',tab:'0.7905221741571179',sueldo:47878.77,genero:'M'},
+{nombre:'Edwin Alberto Fong Flores',fnac:'23/09/1988',fingreso:'01/02/2017',fbaja:'31/10/2025',tipo:'Forzada',dir:'Auditoría',nivel:'Empleado',motivo:'Productividad',nb:'5',tab:'0.660803294083652',sueldo:54885.00,genero:'H'},
+{nombre:'UISES RAMÓN RODRÍGUEZ MARTÍNEZ',fnac:'12/06/2002',fingreso:'18/03/2025',fbaja:'07/11/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Balance de vida',nb:'5',tab:'0.962613339957769',sueldo:31000.00,genero:'H'},
+{nombre:'Jose Roque Quintanilla Nolazco',fnac:'01/06/1999',fingreso:'16/05/2023',fbaja:'14/11/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Balance de vida',nb:'5',tab:'0.8509746887692761',sueldo:51540.13,genero:'H'},
+{nombre:'Sergio Ríos Garza',fnac:'06/08/1979',fingreso:'02/10/2023',fbaja:'27/11/2025',tipo:'Forzada',dir:'Planeación Estrategica',nivel:'Director',motivo:'Productividad',nb:'6',tab:'0.988002822865208',sueldo:483000.00,genero:'H'},
+{nombre:'Abraham Villagrana Arellano',fnac:'25/07/1979',fingreso:'03/08/2015',fbaja:'15/12/2025',tipo:'Forzada',dir:'Administración y Finanzas',nivel:'Gerente',motivo:'Productividad',nb:'7',tab:'0.963616142119408',sueldo:132297.75,genero:'H'},
+{nombre:'Andrea Gutierrez Macias',fnac:'23/08/1996',fingreso:'16/01/2019',fbaja:'15/12/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Productividad',nb:'5',tab:'0.876889800637284',sueldo:62194.29,genero:'M'},
+{nombre:'José Eduardo Pérez Beltran',fnac:'21/07/1983',fingreso:'16/05/2022',fbaja:'15/12/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Gerente',motivo:'Productividad',nb:'7',tab:'0.95446094119875',sueldo:131040.81,genero:'H'},
+{nombre:'JULIÁN GONZÁLEZ LUNA',fnac:'02/09/1994',fingreso:'17/02/2025',fbaja:'15/12/2025',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Productividad',nb:'TSTR',tab:'0.773136835675015',sueldo:81000.00,genero:'H'},
+{nombre:'Jesus Alberto Salas Castellanos',fnac:'07/09/1982',fingreso:'04/05/2020',fbaja:'17/12/2025',tipo:'Forzada',dir:'Administración y Finanzas',nivel:'Gerente',motivo:'Ética',nb:'4',tab:'0.905534587012857',sueldo:145712.29,genero:'H'},
+{nombre:'Mauro Fernández Mena',fnac:'31/08/1983',fingreso:'24/04/2023',fbaja:'19/12/2025',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Gerente',motivo:'Productividad',nb:'2',tab:'0.801838564616679',sueldo:177240.00,genero:'H'},
+{nombre:'Jonhatan Misael Leal Ramos',fnac:'21/03/1992',fingreso:'17/03/2020',fbaja:'23/12/2025',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Salario y Mejores Prestaciones',nb:'5',tab:'0.775738093223923',sueldo:55020.00,genero:'H'},
+{nombre:'Oyuki Jurado Cervantes',fnac:'30/06/1981',fingreso:'05/04/2021',fbaja:'05/01/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Gerente',motivo:'Productividad',nb:'2',tab:'0.93583356034175',sueldo:128483.40,genero:'M'},
+{nombre:'Alejandro Martin Zucker Gottdiener',fnac:'06/03/1963',fingreso:'07/03/2023',fbaja:'07/01/2026',tipo:'Jubilación',dir:'Relaciones Humanas',nivel:'Gerente',motivo:'Jubilación',nb:'8',tab:'0.993785691182786',sueldo:187425.00,genero:'H'},
+{nombre:'Antonio De Jesus Estrada Del Angel',fnac:'26/01/1995',fingreso:'03/05/2021',fbaja:'09/01/2026',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Balance de vida',nb:'3',tab:'0.840584225994818',sueldo:43473.33,genero:'H'},
+{nombre:'ADRIAN DARIO GARCIA  BACKHOFF',fnac:'25/07/2002',fingreso:'04/11/2024',fbaja:'09/01/2026',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Balance de vida',nb:'5',tab:'0.849686927306047',sueldo:89020.00,genero:'H'},
+{nombre:'Oscar Miguel Gomez Sierra',fnac:'23/02/1994',fingreso:'17/09/2020',fbaja:'15/01/2026',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Productividad',nb:'No aplica',tab:'0.786463172276735',sueldo:25327.26,genero:'H'},
+{nombre:'Carla Montserrat Abrego Lopez',fnac:'10/12/1991',fingreso:'01/01/2016',fbaja:'30/01/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Productividad',nb:'5',tab:'0.956473042325804',sueldo:67838.81,genero:'M'},
+{nombre:'JUAN CARLOS CANTÚ IBARRA',fnac:'04/09/1987',fingreso:'16/02/2024',fbaja:'30/01/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Gerente',motivo:'Bajo desempeño',nb:'8',tab:'1.29555039222684',sueldo:177870.00,genero:'H'},
+{nombre:'Arturo Ames Peraza',fnac:'21/10/1981',fingreso:'01/09/2005',fbaja:'30/01/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Gerente',motivo:'Bajo desempeño',nb:'6',tab:'1.14651961862585',sueldo:157409.12,genero:'H'},
+{nombre:'Jesus Abraham Farias Larios',fnac:'26/01/1989',fingreso:'16/05/2018',fbaja:'30/01/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'5',tab:'1.0780806639431801',sueldo:112948.35,genero:'H'},
+{nombre:'ROMÁN VÁZQUEZ MACIAS',fnac:'18/10/1972',fingreso:'16/07/2025',fbaja:'30/01/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'5',tab:'0.7158674404398291',sueldo:75000.00,genero:'H'},
+{nombre:'Roberto Macotela Talamantes',fnac:'07/06/1970',fingreso:'01/11/2023',fbaja:'30/01/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'3',tab:'0.918391111789859',sueldo:96218.00,genero:'H'},
+{nombre:'JULIO CESAR JUAN VALDÉZ',fnac:'17/05/1991',fingreso:'01/07/2025',fbaja:'30/01/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'5',tab:'1.01512046096136',sueldo:52500.00,genero:'H'},
+{nombre:'J. JESUS BERNAL ALCALA',fnac:'09/03/2000',fingreso:'01/07/2025',fbaja:'30/01/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'TSTR',tab:'1.01512046096136',sueldo:52500.00,genero:'H'},
+{nombre:'Adán Alberto García Silva',fnac:'24/10/1986',fingreso:'01/08/2022',fbaja:'09/02/2026',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Home Office',nb:'5',tab:'1.16448125406342',sueldo:96719.48,genero:'H'},
+{nombre:'BRENDA RODRÍGUEZ CEDILLO',fnac:'02/08/2000',fingreso:'16/04/2024',fbaja:'13/02/2026',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Balance de vida',nb:'8',tab:'0.8422975753122699',sueldo:43561.95,genero:'M'},
+{nombre:'Diego Alain Garza Berbena',fnac:'13/10/1991',fingreso:'15/08/2022',fbaja:'27/02/2026',tipo:'Voluntaria',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Home Office',nb:'7',tab:'1.20361810858277',sueldo:126100.66,genero:'H'},
+{nombre:'Enrique De Santiago Moreno',fnac:'15/06/1983',fingreso:'01/11/2022',fbaja:'27/02/2026',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Productividad',nb:'5',tab:'1.01235281369645',sueldo:84084.00,genero:'H'},
+{nombre:'JAVIER OSVALDO AGUILA CANTU',fnac:'11/04/1995',fingreso:'26/08/2024',fbaja:'27/02/2026',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Home Office',nb:'5',tab:'1.00342057115583',sueldo:37842.00,genero:'H'},
+{nombre:'Arturo Rosas Hernandez',fnac:'02/04/1984',fingreso:'30/05/2011',fbaja:'31/03/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'5',tab:'0.9786018888485281',sueldo:59270.00,genero:'H'},
+{nombre:'Daniel Vazquez Maguirre',fnac:'30/11/1983',fingreso:'02/09/2019',fbaja:'31/03/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Gerente',motivo:'Productividad',nb:'4',tab:'1.45610318036041',sueldo:152553.02,genero:'H'},
+{nombre:'Gabriela Velina Nochebuena Miranda',fnac:'25/07/1989',fingreso:'17/09/2019',fbaja:'31/03/2026',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Productividad',nb:'5',tab:'1.10518596594511',sueldo:48809.43,genero:'M'},
+{nombre:'ELAINE CRISTINA DA COSTA SILVA',fnac:'29/11/1976',fingreso:'04/08/2025',fbaja:'10/04/2026',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Home Office',nb:'TSTR',tab:'1.00958359422724',sueldo:105772.05,genero:'M'},
+{nombre:'Eduardo Prado Morales',fnac:'15/10/1971',fingreso:'16/05/2018',fbaja:'15/04/2026',tipo:'Voluntaria',dir:'Administración y Finanzas',nivel:'Gerente',motivo:'Salario y Mejores Prestaciones',nb:'3',tab:'1.12272122824134',sueldo:180660.44,genero:'H'},
+{nombre:'Eduardo Gonzalez Treviño',fnac:'22/11/1986',fingreso:'25/03/2019',fbaja:'17/04/2026',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Subdirector',motivo:'Salario y Mejores Prestaciones',nb:'2',tab:'1.01345159743397',sueldo:224015.37,genero:'H'},
+{nombre:'Jesús Emmanuel Pérez Medrano',fnac:'27/11/1996',fingreso:'21/02/2022',fbaja:'17/04/2026',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Home Office',nb:'5',tab:'0.7906295680420741',sueldo:40889.78,genero:'H'},
+{nombre:'Roberto Parra Aviña',fnac:'26/12/1981',fingreso:'01/04/2026',fbaja:'16/04/2026',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Home Office',nb:'TSTR',tab:'0.986117019219614',sueldo:51000.00,genero:'H'},
+{nombre:'Nelly Karina Medrano Ortiz',fnac:'06/04/1988',fingreso:'02/05/2023',fbaja:'30/04/2026',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Productividad',nb:'5',tab:'1.46519631728844',sueldo:103920.51,genero:'M'},
+{nombre:'Cesar Arturo Chavez Gomez',fnac:'01/12/1983',fingreso:'19/11/2019',fbaja:'15/05/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Gerente',motivo:'Bajo desempeño',nb:'5',tab:'1.06242742892937',sueldo:145863.85,genero:'H'},
+{nombre:'Ana Cristina Muñoz Lozano',fnac:'09/03/1989',fingreso:'01/11/2022',fbaja:'31/05/2026',tipo:'Forzada',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Productividad',nb:'5',tab:'0.8751808260121361',sueldo:38651.49,genero:'M'},
+{nombre:'JORGE  ALBERTO ZAVALA MARÍN',fnac:'19/10/1985',fingreso:'02/03/2026',fbaja:'29/05/2026',tipo:'Voluntaria',dir:'Fiscal',nivel:'Empleado',motivo:'Balance de vida',nb:'TSTR',tab:'0.874150523080393',sueldo:62000.00,genero:'H'},
+{nombre:'DIEGO ANDRÉ ISLAS CADILLO',fnac:'25/12/2003',fingreso:'18/11/2025',fbaja:'29/05/2026',tipo:'Voluntaria',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Balance de vida',nb:'TSTR',tab:'0.483390695695889',sueldo:25000.00,genero:'H'},
+{nombre:'Adan Reyes Santiago',fnac:'16/05/1979',fingreso:'16/05/2020',fbaja:'30/06/2026',tipo:'Forzada',dir:'Transformación y Digital',nivel:'Empleado',motivo:'Bajo desempeño',nb:'5',tab:'0.866267259023814',sueldo:71950.43,genero:'H'},
+{nombre:'Valeria Sarai Valenzuela Valle',fnac:'04/03/1998',fingreso:'01/06/2021',fbaja:'30/06/2026',tipo:'Voluntaria',dir:'Relaciones Humanas',nivel:'Empleado',motivo:'Balance de vida',nb:'8',tab:'0.6614725206553309',sueldo:46915.60,genero:'M'}
+];
+
+function cargarDatosHardcoded(){
+  DATA=RAW_DATA.map(r=>({
+    nombre:r.nombre,
+    _date:excelDateToJS(r.fbaja),
+    _ingreso:excelDateToJS(r.fingreso),
+    _nacimiento:excelDateToJS(r.fnac),
+    tipo:r.tipo,
+    dir:r.dir,
+    nivel:r.nivel,
+    motivo:r.motivo,
+    nb:r.nb,
+    tab:r.tab,
+    sueldo:r.sueldo,
+    genero:r.genero,
+  }));
+  mostrarDashboard();
+}
+
+function mostrarDashboard(){
+  document.getElementById('drop-area').style.display='none';
+  document.getElementById('filters-bar').style.display='flex';
+  document.getElementById('kpis').style.display='grid';
+  initFilters();buildCharts();render();
+}
+
+function cambiarArchivo(){
+  document.getElementById('drop-area').style.display='block';
+  document.getElementById('filters-bar').style.display='none';
+  document.getElementById('kpis').style.display='none';
+  document.getElementById('charts-area').innerHTML='';
+  document.getElementById('file-badge-wrap').innerHTML='';
+  destroyAll();DATA=[];detalleFilter=null;
+}
+
+function initFilters(){
+  const anio=document.getElementById('f-anio').value;
+  const dirsExtraExcluir=anio&&DIRS_POR_AÑO[anio]?DIRS_POR_AÑO[anio]:[];
+  const years=[...new Set(DATA.map(r=>r._date?r._date.getFullYear():null).filter(Boolean))].filter(y=>!AÑOS_EXCLUIDOS.includes(y)).sort();
+  const tipos=[...new Set(DATA.map(r=>r.tipo).filter(Boolean))].sort();
+  const dirs=[...new Set(DATA
+    .filter(r=>!anio||getYear(r)==+anio)
+    .map(r=>r.dir).filter(d=>d&&!dirsExtraExcluir.includes(d)))].sort();
+  const niveles=[...new Set(DATA.map(r=>r.nivel).filter(Boolean))].sort();
+  function fill(id,vals,keep){
+    const el=document.getElementById(id);
+    const prev=keep?el.value:'';
+    el.innerHTML=el.options[0].outerHTML;
+    vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o);});
+    if(prev&&[...el.options].some(o=>o.value===prev))el.value=prev;
+  }
+  fill('f-anio',years,true);
+  fill('f-tipo',tipos,true);
+  fill('f-dir',dirs,false);
+  fill('f-nivel',niveles,true);
+}
+
+function buildCharts(){
+  document.getElementById('charts-area').innerHTML=`
+    <div class="rot-section" id="rot-section">
+      <div class="rot-title" id="rot-title">% ROTACIÓN — HEADCOUNT ACTIVO: 328</div>
+      <div class="rot-grid" id="rot-grid"></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card clickable-hint" style="grid-column:1/-1;"><div class="chart-label">Rotación por dirección</div><div class="legend" id="leg-dir-rot"></div><div style="position:relative;width:100%;height:240px;"><canvas id="c-dir-rot" role="img" aria-label="Rotación por dirección"></canvas></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card" style="grid-column:1/-1;"><div class="chart-label">Riesgo de fuga por dirección</div><div id="riesgo-container"></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card clickable-hint" style="grid-column:1/-1;"><div class="chart-label">Rotación mensual comparativa por año</div><div id="leg-comp" class="legend"></div><div style="position:relative;width:100%;height:220px;"><canvas id="c-comp"></canvas></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card clickable-hint" style="grid-column:1/-1;"><div class="chart-label">Bajas por mes</div><div style="position:relative;width:100%;height:200px;"><canvas id="c-mes"></canvas></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card" style="grid-column:1/-1;"><div class="chart-label">Rotación primeros 90 días</div><div id="rot90-container"></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card clickable-hint"><div class="chart-label">Motivos — voluntarias</div><div id="leg-mot-vol" class="legend"></div><div style="position:relative;width:100%;height:200px;"><canvas id="c-mot-vol" role="img" aria-label="Motivos voluntarias"></canvas></div></div>
+      <div class="chart-card clickable-hint"><div class="chart-label">Motivos — forzadas</div><div id="leg-mot-for" class="legend"></div><div style="position:relative;width:100%;height:200px;"><canvas id="c-mot-for" role="img" aria-label="Motivos forzadas"></canvas></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card clickable-hint"><div class="chart-label">Por nivel organizacional</div><div id="leg-nivel" class="legend"></div><div style="position:relative;width:100%;height:200px;"><canvas id="c-nivel"></canvas></div></div>
+      <div class="chart-card clickable-hint"><div class="chart-label">9-Box — distribución de bajas</div><div id="nb-container"></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card" style="grid-column:1/-1;"><div class="chart-label">% Penetración en tabulador</div><div id="tab-container"></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card clickable-hint"><div class="chart-label">Género</div><div id="leg-genero" class="legend"></div><div style="position:relative;width:100%;height:200px;"><canvas id="c-genero"></canvas></div></div>
+      <div class="chart-card clickable-hint"><div class="chart-label">Antigüedad Prom Bajas</div><div id="antig-container"></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card clickable-hint" style="grid-column:1/-1;"><div class="chart-label">Edad Promedio Bajas</div><div id="edad-container"></div></div>
+    </div>
+    <div class="detalle-card" id="detalle-card">
+      <div class="detalle-header">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="detalle-title">Detalle</span>
+          <span class="detalle-filtro" id="detalle-filtro-badge"></span>
+          <button class="btn-limpiar" id="btn-limpiar" style="display:none;" onclick="limpiarDetalle()">✕ Limpiar</button>
+        </div>
+        <div class="detalle-right">
+          <span class="detalle-count" id="detalle-count"></span>
+          <input class="detalle-search" type="text" placeholder="Buscar nombre…" oninput="buscar(this.value)">
+        </div>
+      </div>
+      <div class="tabla-wrap"><table>
+        <thead><tr><th style="min-width:180px;">Nombre</th><th>Fecha de baja</th><th>Tipo</th><th style="min-width:140px;">Dirección</th><th>Nivel</th><th>Motivo</th></tr></thead>
+        <tbody id="tabla-body"></tbody>
+      </table></div>
+      <div class="pagination">
+        <span id="pag-info"></span>
+        <div class="pag-btns">
+          <button class="pag-btn" id="btn-prev" onclick="cambiarPagina(-1)">← Anterior</button>
+          <button class="pag-btn" id="btn-next" onclick="cambiarPagina(1)">Siguiente →</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function getFiltered(){
+  const anio=document.getElementById('f-anio').value;
+  const tipo=document.getElementById('f-tipo').value;
+  const dir=document.getElementById('f-dir').value;
+  const nivel=document.getElementById('f-nivel').value;
+  const dirsExtraExcluir=anio&&DIRS_POR_AÑO[anio]?DIRS_POR_AÑO[anio]:[];
+  return DATA.filter(r=>{
+    if(anio&&getYear(r)!=+anio)return false;
+    if(tipo&&r.tipo!==tipo)return false;
+    if(dir&&r.dir!==dir)return false;
+    if(nivel&&r.nivel!==nivel)return false;
+    if(dirsExtraExcluir.includes(r.dir))return false;
+    return true;
+  });
+}
+
+function activarDetalle(label, filterFn, snapData){
+  detalleFilter={label,fn:filterFn};
+  paginaActual=1;busqueda='';
+  const sInput=document.querySelector('.detalle-search');
+  if(sInput)sInput.value='';
+  const badge=document.getElementById('detalle-filtro-badge');
+  if(badge){badge.textContent='📌 '+label;badge.classList.add('visible');}
+  const btnL=document.getElementById('btn-limpiar');
+  if(btnL)btnL.style.display='inline-block';
+  const base=snapData||getFiltered();
+  const resultado=base.filter(filterFn);
+  detalleResultado=resultado; // guardar para renderTabla
+  renderConFiltro(resultado);
+  const dc=document.getElementById('detalle-card');
+  if(dc)setTimeout(()=>dc.scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+function limpiarDetalle(){
+  detalleFilter=null;detalleResultado=null;paginaActual=1;busqueda='';
+  const sInput=document.querySelector('.detalle-search');
+  if(sInput)sInput.value='';
+  const badge=document.getElementById('detalle-filtro-badge');
+  if(badge){badge.textContent='';badge.classList.remove('visible');}
+  const btnL=document.getElementById('btn-limpiar');
+  if(btnL)btnL.style.display='none';
+  renderConFiltro(getFiltered());
+}
+
+function getDetalleData(){
+  if(detalleResultado) return detalleResultado;
+  const base=getFiltered();
+  return detalleFilter?base.filter(detalleFilter.fn):base;
+}
+function buscar(val){busqueda=val.toLowerCase();paginaActual=1;renderTabla(getDetalleData());}
+function cambiarPagina(dir){
+  const filtered=getDetalleData().filter(r=>!busqueda||r.nombre.toLowerCase().includes(busqueda));
+  const totalPags=Math.max(1,Math.ceil(filtered.length/porPagina));
+  paginaActual=Math.max(1,Math.min(paginaActual+dir,totalPags));
+  renderTabla(getDetalleData());
+}
+
+function renderTabla(data){
+  if(!document.getElementById('tabla-body'))return;
+  const filtrados=data.filter(r=>!busqueda||r.nombre.toLowerCase().includes(busqueda));
+  const total=filtrados.length;
+  const totalPags=Math.max(1,Math.ceil(total/porPagina));
+  paginaActual=Math.min(paginaActual,totalPags);
+  const inicio=(paginaActual-1)*porPagina;
+  const pagina=filtrados.slice(inicio,inicio+porPagina);
+  document.getElementById('detalle-count').textContent=total+' registros';
+  document.getElementById('pag-info').textContent='Página '+paginaActual+' de '+totalPags;
+  document.getElementById('btn-prev').disabled=paginaActual<=1;
+  document.getElementById('btn-next').disabled=paginaActual>=totalPags;
+  const tagC=t=>'tag-'+(t==='Jubilación'||t==='Jubilacion'?'Jubilación':t);
+  document.getElementById('tabla-body').innerHTML=pagina.length?pagina.map(r=>`<tr>
+    <td style="font-weight:500;">${r.nombre||'—'}</td>
+    <td>${formatDate(r._date)}</td>
+    <td><span class="tag ${tagC(r.tipo)}">${r.tipo||'—'}</span></td>
+    <td>${r.dir||'—'}</td>
+    <td>${r.nivel||'—'}</td>
+    <td style="color:#888;font-size:11px;">${r.motivo||'—'}</td>
+  </tr>`).join(''):`<tr><td colspan="6" class="empty-table">Sin registros para esta selección</td></tr>`;
+}
+
+function count(arr,key){const m={};arr.forEach(r=>{const v=r[key]||'Sin dato';m[v]=(m[v]||0)+1;});return m;}
+function destroyAll(){Object.values(charts).forEach(c=>c.destroy());charts={};}
+
+function diffYears(d1,d2){if(!d1||!d2)return null;const diff=(d2-d1)/(1000*60*60*24*365.25);return diff>=0?diff:null;}
+function diffDays(d1,d2){if(!d1||!d2)return null;return Math.round((d2-d1)/(1000*60*60*24));}
+function avg(arr){const v=arr.filter(x=>x!==null&&!isNaN(x));return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
+
+function pct(n){return HEADCOUNT>0?(n/HEADCOUNT*100).toFixed(1)+'%':'—';}
+
+function renderRotacion(){
+  if(!document.getElementById('rot-grid'))return;
+  const anioFiltro=document.getElementById('f-anio').value;
+  const actualDir=document.getElementById('f-dir').value;
+  const hc=actualDir&&HC_DIR[actualDir]?HC_DIR[actualDir]:HEADCOUNT;
+  const label=actualDir?actualDir:'SCyF';
+
+  function pctLocal(arr){return hc>0?(arr.length/hc*100).toFixed(1)+'%':'—';}
+
+  function rotCol(anio, filas){
+    return `<div class="rot-col">
+      <div class="rot-col-title">${anio}</div>
+      ${filas.map(f=>`<div class="rot-item">
+        <span class="rot-item-label">${f.label}</span>
+        <span class="rot-item-val ${f.color}">${f.val}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  function filasAnio(y){
+    const base=DATA.filter(r=>r._date&&r._date.getFullYear()===y&&(!actualDir||r.dir===actualDir));
+    return[
+      {label:'Total',     val:pctLocal(base), color:'blue'},
+      {label:'Voluntaria',val:pctLocal(base.filter(r=>r.tipo==='Voluntaria')), color:'green'},
+      {label:'Forzada',   val:pctLocal(base.filter(r=>r.tipo==='Forzada')), color:'red'},
+    ];
+  }
+
+  document.getElementById('rot-title').textContent=`% ROTACIÓN — ${label.toUpperCase()} · HC: ${hc}`;
+
+  // Solo mostrar año filtrado o 2026 por defecto
+  if(anioFiltro){
+    document.getElementById('rot-grid').innerHTML=rotCol(anioFiltro, filasAnio(+anioFiltro));
+  } else {
+    document.getElementById('rot-grid').innerHTML=rotCol('2026', filasAnio(2026));
+  }
+}
+
+function render(){
+  if(!document.getElementById('c-mes'))return;
+  detalleFilter=null;detalleResultado=null;
+  const badge=document.getElementById('detalle-filtro-badge');
+  if(badge){badge.textContent='';badge.classList.remove('visible');}
+  const btnL=document.getElementById('btn-limpiar');
+  if(btnL)btnL.style.display='none';
+  paginaActual=1;busqueda='';
+  const sInput=document.querySelector('.detalle-search');
+  if(sInput)sInput.value='';
+  renderConFiltro(getFiltered());
+}
+
+function renderConFiltro(data){
+  if(!document.getElementById('c-mes'))return;
+  destroyAll();
+  const n=data.length;
+  const forzadas=data.filter(r=>r.tipo==='Forzada').length;
+  const voluntarias=data.filter(r=>r.tipo==='Voluntaria').length;
+  const jubs=data.filter(r=>r.tipo==='Jubilación'||r.tipo==='Jubilacion').length;
+
+  document.getElementById('k-total').textContent=n;
+  document.getElementById('k-rango').textContent=n+' registros';
+  document.getElementById('k-vol').textContent=voluntarias;
+  document.getElementById('k-pct-vol').textContent=n?Math.round(voluntarias/n*100)+'% del total':'—';
+  document.getElementById('k-for').textContent=forzadas;
+  document.getElementById('k-pct-for').textContent=n?Math.round(forzadas/n*100)+'% del total':'—';
+  document.getElementById('k-jub').textContent=jubs;
+  document.getElementById('k-pct-jub').textContent=n?Math.round(jubs/n*100)+'% del total':'—';
+
+  // ── 9-Box (aquí primero, antes de cualquier Chart.js que pueda fallar) ──
+  const nbCounts=Array.from({length:3},()=>Array(3).fill(0));let nbTotal=0;
+  data.forEach(r=>{const p=normalizeNB(r.nb);if(p){nbCounts[p.pot][p.des]++;nbTotal++;}});
+  document.getElementById('nb-container').innerHTML=`
+    <div style="font-size:10px;color:#aaa;margin-bottom:6px;">Competencias ↑ · Desempeño → · <strong style="color:#666;">${nbTotal}</strong> de ${n} con dato 9-box</div>
+    <div class="nb-wrap">
+      <div class="nb-axis-y"><span>Excede</span><span>Cumple</span><span>Requiere</span></div>
+      <div class="nb-right">
+        <div class="nb-grid">${NB_CELLS.map(c=>{
+          const cnt=nbCounts[c.pot][c.des];
+          return`<div class="nb-cell" data-pot="${c.pot}" data-des="${c.des}" data-label="${c.label.replace('\n',' ')}" style="background:${c.bg};cursor:pointer;">
+            <span class="nb-cell-count" style="color:${c.tc};">${cnt}</span>
+            <span class="nb-cell-label" style="color:${c.tc};">${c.label.replace('\n','<br>')}</span>
+          </div>`;
+        }).join('')}</div>
+        <div class="nb-axis-x"><span>Requiere Mejora<br><small style="font-size:8px;">0–79</small></span><span>Cumple Expectativas<br><small style="font-size:8px;">80–100</small></span><span>Excede Expectativas<br><small style="font-size:8px;">101–120</small></span></div>
+      </div>
+    </div>`;
+  const dataSnapshot=data.slice();
+  document.querySelectorAll('#nb-container .nb-cell').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const pot=+el.dataset.pot, des=+el.dataset.des, label=el.dataset.label;
+      const nbFn=r=>{const p=normalizeNB(r.nb);return p&&p.pot===pot&&p.des===des;};
+      // Combinar con el contexto actual (snapshot del render)
+      activarDetalle('9-Box: '+label, nbFn, dataSnapshot);
+    });
+  });
+
+  // Rotación
+  renderRotacion();
+
+  const byMonthVol={},byMonthFor={},byMonthJub={};
+  data.forEach(r=>{
+    const k=getMonthKey(r);if(!k)return;
+    if(r.tipo==='Voluntaria') byMonthVol[k]=(byMonthVol[k]||0)+1;
+    else if(r.tipo==='Forzada') byMonthFor[k]=(byMonthFor[k]||0)+1;
+    else if(r.tipo==='Jubilación'||r.tipo==='Jubilacion') byMonthJub[k]=(byMonthJub[k]||0)+1;
+  });
+  const allMonths=[...new Set([...Object.keys(byMonthVol),...Object.keys(byMonthFor),...Object.keys(byMonthJub)])].sort();
+  const mesLabels=allMonths.map(k=>getMonthLabel(k));
+  const totalPorMes=allMonths.map(k=>(byMonthVol[k]||0)+(byMonthFor[k]||0)+(byMonthJub[k]||0));
+  const mesDataSnap=data.slice();
+
+  const totalMesPlugin={id:'totalMes',afterDatasetsDraw(chart){
+    const{ctx}=chart;
+    const meta=chart.getDatasetMeta(chart.data.datasets.length-1);
+    meta.data.forEach((bar,i)=>{
+      const total=totalPorMes[i];
+      if(!total)return;
+      ctx.save();
+      ctx.font='500 10px sans-serif';
+      ctx.fillStyle='#475569';
+      ctx.textAlign='center';
+      ctx.textBaseline='bottom';
+      ctx.fillText(total, bar.x, bar.y-2);
+      ctx.restore();
+    });
+  }};
+
+  charts.mes=new Chart(document.getElementById('c-mes'),{
+    type:'bar',
+    plugins:[totalMesPlugin],
+    data:{labels:mesLabels,datasets:[
+      {label:'Voluntaria', data:allMonths.map(k=>byMonthVol[k]||0), backgroundColor:'#1D9E75', borderRadius:0},
+      {label:'Forzada',    data:allMonths.map(k=>byMonthFor[k]||0), backgroundColor:'#D85A30', borderRadius:0},
+      {label:'Jubilación', data:allMonths.map(k=>byMonthJub[k]||0), backgroundColor:'#534AB7', borderRadius:3},
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:18}},
+      plugins:{
+        legend:{display:true, position:'top', labels:{boxWidth:10, font:{size:10}, padding:12}},
+        tooltip:{callbacks:{
+          label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}`,
+          footer:items=>`Total: ${totalPorMes[items[0].dataIndex]}`
+        }}
+      },
+      scales:{
+        x:{stacked:true, ticks:{font:{size:9},maxRotation:45,autoSkip:false}},
+        y:{stacked:true, ticks:{stepSize:1,font:{size:10}},beginAtZero:true}
+      },
+      onClick:(e,els)=>{
+        if(!els.length)return;
+        const idx=els[0].index;
+        const dsIdx=els[0].datasetIndex;
+        const monthKey=allMonths[idx];
+        const tipos=['Voluntaria','Forzada','Jubilación'];
+        const tipoSel=tipos[dsIdx];
+        activarDetalle(getMonthLabel(monthKey)+' — '+tipoSel, r=>getMonthKey(r)===monthKey&&(r.tipo===tipoSel||(tipoSel==='Jubilación'&&r.tipo==='Jubilacion')), mesDataSnap);
+      }
+    }
+  });
+
+  // Dona label plugin — definido antes de usarse
+  const donutLabelPlugin={id:'donutPct',afterDatasetsDraw(chart){
+    const{ctx,data}=chart;
+    chart.getDatasetMeta(0).data.forEach((arc,i)=>{
+      const angle=(arc.startAngle+arc.endAngle)/2,r=(arc.innerRadius+arc.outerRadius)/2;
+      const x=arc.x+Math.cos(angle)*r,y=arc.y+Math.sin(angle)*r;
+      const val=data.datasets[0].data[i];
+      if(val<8)return;
+      ctx.save();ctx.font='500 11px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(Math.round(val)+'%',x,y);ctx.restore();
+    });
+  }};
+
+  // Género dona
+  const genMap={'Hombre':data.filter(r=>r.genero==='H').length,'Mujer':data.filter(r=>r.genero==='M').length};
+  const genKeys=Object.keys(genMap).filter(k=>genMap[k]>0);
+  const genColors={'Hombre':'#378ADD','Mujer':'#D85A30'};
+  const genTotal=genKeys.reduce((a,k)=>a+genMap[k],0)||1;
+  document.getElementById('leg-genero').innerHTML=genKeys.map(k=>`<span><span class="legend-dot" style="background:${genColors[k]}"></span>${k}: ${genMap[k]}</span>`).join('');
+  charts.genero=new Chart(document.getElementById('c-genero'),{
+    type:'doughnut',
+    plugins:[donutLabelPlugin],
+    data:{labels:genKeys,datasets:[{data:genKeys.map(k=>+(genMap[k]/genTotal*100).toFixed(1)),backgroundColor:genKeys.map(k=>genColors[k]),borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${genMap[genKeys[ctx.dataIndex]]} personas`}}},
+      onClick:(e,els)=>{
+        if(!els.length)return;
+        const g=genKeys[els[0].index]==='Hombre'?'H':'M';
+        activarDetalle('Género: '+genKeys[els[0].index],r=>r.genero===g, data.slice());
+      }
+    }
+  });
+
+  const nivelMap=count(data,'nivel'),nivelKeys=Object.keys(nivelMap).sort((a,b)=>nivelMap[b]-nivelMap[a]);
+  document.getElementById('leg-nivel').innerHTML=nivelKeys.map(k=>`<span><span class="legend-dot" style="background:${COLORS[k]||'#888'}"></span>${k}</span>`).join('');
+  charts.nivel=new Chart(document.getElementById('c-nivel'),{
+    type:'bar',
+    data:{labels:nivelKeys,datasets:[{data:nivelKeys.map(k=>nivelMap[k]),backgroundColor:nivelKeys.map(k=>COLORS[k]||'#888'),borderRadius:3,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11}}},y:{ticks:{stepSize:1,font:{size:10}},beginAtZero:true}},
+      onClick:(e,els)=>{
+        if(!els.length)return;
+        const nv=nivelKeys[els[0].index];
+        activarDetalle('Nivel: '+nv,r=>r.nivel===nv, data.slice());
+      }
+    }
+  });
+
+  // ── Rotación por dirección ──
+  if(document.getElementById('c-dir-rot')){
+    const DIRS_ORDER=['Transformación y Digital','Relaciones Humanas','Administración y Finanzas','Auditoría','Fiscal','Jurídico'];
+    const DIRS_SHORT={'Transformación y Digital':'TyD','Relaciones Humanas':'RH','Administración y Finanzas':'AdFin','Auditoría':'Auditoría','Fiscal':'Fiscal','Jurídico':'Jurídico'};
+    const anioFiltro=document.getElementById('f-anio').value;
+    const hcTotal=HEADCOUNT;
+    // Siempre usar 2026 para esta gráfica cuando no hay filtro de año
+    const data2026Dir=anioFiltro?data:data.filter(r=>r._date&&r._date.getFullYear()===2026);
+
+    const bajasVolDir={},bajasForDir={};
+    data2026Dir.forEach(r=>{
+      if(!DIRS_ORDER.includes(r.dir))return;
+      if(r.tipo==='Voluntaria') bajasVolDir[r.dir]=(bajasVolDir[r.dir]||0)+1;
+      else if(r.tipo==='Forzada') bajasForDir[r.dir]=(bajasForDir[r.dir]||0)+1;
+    });
+
+    const hcScyf=hcTotal;
+    const totalVol=data2026Dir.filter(r=>r.tipo==='Voluntaria').length;
+    const totalFor=data2026Dir.filter(r=>r.tipo==='Forzada').length;
+
+    const labels=['SCyF',...DIRS_ORDER.map(d=>DIRS_SHORT[d])];
+    const volData=[totalVol,...DIRS_ORDER.map(d=>bajasVolDir[d]||0)];
+    const forData=[totalFor,...DIRS_ORDER.map(d=>bajasForDir[d]||0)];
+    const hcArr=[hcScyf,...DIRS_ORDER.map(d=>HC_DIR[d]||1)];
+    const pctVolArr=volData.map((v,i)=>+(v/hcArr[i]*100).toFixed(1));
+    const pctForArr=forData.map((v,i)=>+(v/hcArr[i]*100).toFixed(1));
+    const bgVol=labels.map((_,i)=>i===0?'#0A1F44':'#1D9E75');
+    const bgFor=labels.map((_,i)=>i===0?'#534AB7':'#D85A30');
+
+    document.getElementById('leg-dir-rot').innerHTML=`
+      <span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:2px;background:#1D9E75;flex-shrink:0;"></span>Voluntaria</span>
+      <span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:2px;background:#D85A30;flex-shrink:0;"></span>Forzada</span>`;
+
+    const labelsPlugin={id:'customLabels',afterDatasetsDraw(chart){
+      const{ctx}=chart;
+      chart.data.datasets.forEach((ds,di)=>{
+        chart.getDatasetMeta(di).data.forEach((bar,i)=>{
+          const val=ds.data[i];if(!val)return;
+          const barH=bar.base-bar.y;
+          ctx.save();
+          if(barH>18){ctx.font='500 11px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(val,bar.x,bar.y+barH/2);}
+          const pct=di===0?pctVolArr[i]:pctForArr[i];
+          if(pct>0){ctx.font='500 10px sans-serif';ctx.fillStyle=i===0?'#0A1F44':'#64748B';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(pct+'%',bar.x,bar.y-2);}
+          ctx.restore();
+        });
+      });
+    }};
+
+    const bgVolFinal=labels.map(()=>'#1D9E75');
+    const bgForFinal=labels.map(()=>'#D85A30');
+
+    charts.dirRot=new Chart(document.getElementById('c-dir-rot'),{
+      type:'bar',plugins:[labelsPlugin],
+      data:{labels,datasets:[
+        {label:'Voluntaria',data:volData,backgroundColor:bgVolFinal,borderRadius:4,borderSkipped:false},
+        {label:'Forzada',   data:forData,backgroundColor:bgForFinal,borderRadius:4,borderSkipped:false},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y} bajas`}}},
+        scales:{
+          x:{stacked:false,ticks:{font:{size:11}}},
+          y:{stacked:false,beginAtZero:true,ticks:{font:{size:10},stepSize:2}}
+        },
+        onClick:(e,els)=>{
+          if(!els.length)return;
+          const idx=els[0].index;
+          const dsIdx=els[0].datasetIndex;
+          const tipo=dsIdx===0?'Voluntaria':'Forzada';
+          document.getElementById('f-tipo').value='';
+          if(idx===0){
+            document.getElementById('f-dir').value='';
+          } else {
+            const d=DIRS_ORDER[idx-1];
+            document.getElementById('f-dir').value=d;
+          }
+          renderRotacion();render();
+          // Activar detalle de tabla con dir+tipo
+          const dirVal=document.getElementById('f-dir').value;
+          activarDetalle((dirVal||'SCyF')+' — '+tipo, r=>r.tipo===tipo&&(!dirVal||r.dir===dirVal));
+        }
+      }
+    });
+  }
+
+  // ── Top motivos (barras) ──
+  const motMap={};
+  data.forEach(r=>{const m=(r.motivo||'').trim();if(m&&m!=='NA'&&m!=='Sin información'&&m!==''){motMap[m]=(motMap[m]||0)+1;}});
+  const topMot=Object.entries(motMap).sort((a,b)=>b[1]-a[1]).slice(0,8),maxMot=topMot[0]?topMot[0][1]:1;
+  if(document.getElementById('motivo-list')){
+    document.getElementById('motivo-list').innerHTML=topMot.map(([k,v])=>`
+      <div class="bar-row" data-motivo="${k.replace(/"/g,'&quot;')}" style="cursor:pointer;">
+        <span class="bar-name" title="${k}">${k}</span>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(v/maxMot*100)}%;background:#1D9E75;"></div></div>
+        <span class="bar-count">${v}</span>
+      </div>`).join('');
+    document.querySelectorAll('#motivo-list .bar-row').forEach(el=>{
+      el.addEventListener('click',()=>{const m=el.dataset.motivo;activarDetalle('Motivo: '+m,r=>r.motivo===m, data.slice());});
+    });
+  }
+
+  // ── Donas de motivos voluntarias y forzadas ──
+
+  if(document.getElementById('c-mot-vol')){
+    const volMotMap={};
+    data.filter(r=>r.tipo==='Voluntaria').forEach(r=>{const m=(r.motivo||'').trim();if(m&&m!=='NA'&&m!==''){volMotMap[m]=(volMotMap[m]||0)+1;}});
+    const totalVolMot=Object.values(volMotMap).reduce((a,b)=>a+b,0)||1;
+    const volEntries=Object.entries(volMotMap).sort((a,b)=>b[1]-a[1]).slice(0,4);
+    const volLabels=volEntries.map(([k])=>k),volPcts=volEntries.map(([,v])=>+(v/totalVolMot*100).toFixed(1));
+    const volPers=volEntries.map(([,v])=>v);
+    const colVol=['#534AB7','#1D9E75','#D85A30','#BA7517'];
+    document.getElementById('leg-mot-vol').innerHTML=volLabels.map((k,i)=>`<span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:2px;background:${colVol[i]};flex-shrink:0;"></span>${k}</span>`).join('');
+    charts.motVol=new Chart(document.getElementById('c-mot-vol'),{
+      type:'doughnut',plugins:[donutLabelPlugin],
+      data:{labels:volLabels,datasets:[{data:volPcts,backgroundColor:colVol,borderWidth:0,hoverOffset:6}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>` ${ctx.label}: ${volPers[ctx.dataIndex]} personas`}}},
+        onClick:(e,els)=>{if(!els.length)return;const m=volLabels[els[0].index];activarDetalle('Motivo vol: '+m,r=>r.tipo==='Voluntaria'&&r.motivo===m);}
+      }
+    });
+  }
+
+  if(document.getElementById('c-mot-for')){
+    const forMotMap={};
+    data.filter(r=>r.tipo==='Forzada').forEach(r=>{const m=(r.motivo||'').trim();if(m&&m!=='NA'&&m!==''){forMotMap[m]=(forMotMap[m]||0)+1;}});
+    const totalForMot=Object.values(forMotMap).reduce((a,b)=>a+b,0)||1;
+    const forEntries=Object.entries(forMotMap).sort((a,b)=>b[1]-a[1]).slice(0,4);
+    const forLabels=forEntries.map(([k])=>k),forPcts=forEntries.map(([,v])=>+(v/totalForMot*100).toFixed(1));
+    const forPers=forEntries.map(([,v])=>v);
+    const colFor=['#D85A30','#BA7517','#534AB7','#1D9E75'];
+    document.getElementById('leg-mot-for').innerHTML=forLabels.map((k,i)=>`<span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:2px;background:${colFor[i]};flex-shrink:0;"></span>${k}</span>`).join('');
+    charts.motFor=new Chart(document.getElementById('c-mot-for'),{
+      type:'doughnut',plugins:[donutLabelPlugin],
+      data:{labels:forLabels,datasets:[{data:forPcts,backgroundColor:colFor,borderWidth:0,hoverOffset:6}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>` ${ctx.label}: ${forPers[ctx.dataIndex]} personas`}}},
+        onClick:(e,els)=>{if(!els.length)return;const m=forLabels[els[0].index];activarDetalle('Motivo for: '+m,r=>r.tipo==='Forzada'&&r.motivo===m);}
+      }
+    });
+  }
+
+
+
+  // % Tabulador histogram
+  const tabRanges=[{label:'–80%',min:0,max:80},{label:'81–100%',min:81,max:100},{label:'101–120%',min:101,max:120},{label:'+120%',min:121,max:999}];
+  const tabData=data.map(r=>{
+    let v=parseFloat((r.tab||'').toString().replace('%','').trim());
+    if(isNaN(v)||v<=0) return null;
+    if(v<=2) v=Math.round(v*100); // viene como decimal (0.75 → 75)
+    return v;
+  }).filter(v=>v!==null);
+  if(tabData.length===0){
+    document.getElementById('tab-container').innerHTML='<div style="text-align:center;padding:2rem;color:#bbb;font-size:13px;">Sin datos de % tabulador aún — se mostrará cuando agregues esta columna a tu Excel.</div>';
+  } else {
+    const rangeCounts=tabRanges.map(r=>tabData.filter(v=>v>=r.min&&v<=r.max).length);
+    document.getElementById('tab-container').innerHTML='<div style="position:relative;width:100%;height:200px;"><canvas id="c-tab"></canvas></div>';
+    charts.tab=new Chart(document.getElementById('c-tab'),{
+      type:'bar',
+      data:{labels:tabRanges.map(r=>r.label),datasets:[{label:'Colaboradores',data:rangeCounts,backgroundColor:['#FCEBEB','#FAEEDA','#EAF3DE','#E1F5EE','#EEEDFE'],borderColor:['#D85A30','#BA7517','#1D9E75','#085041','#534AB7'],borderWidth:1.5,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11}}},y:{ticks:{stepSize:1,font:{size:10}},beginAtZero:true}},
+        onClick:(e,els)=>{
+          if(!els.length)return;
+          const rng=tabRanges[els[0].index];
+          activarDetalle('Tabulador: '+rng.label,r=>{let v=parseFloat((r.tab||'').toString().replace('%','').trim());if(isNaN(v)||v<=0)return false;if(v<=2)v=Math.round(v*100);return v>=rng.min&&v<=rng.max;}, data.slice());
+        }
+      }
+    });
+  }
+
+  // Gráfica comparativa por año — solo años de fecha de baja, sin 2024
+  const años=[...new Set(data.map(r=>r._date?r._date.getFullYear():null).filter(y=>y&&!AÑOS_EXCLUIDOS.includes(y)))].sort();
+  const coloresAños=['#D85A30','#1D9E75','#BA7517'];
+  const compDatasets=años.map((y,i)=>({
+    label:y+'',
+    data:MES.map((_,mi)=>data.filter(r=>getYear(r)===y&&r._date&&r._date.getMonth()===mi).length),
+    borderColor:coloresAños[i%coloresAños.length],
+    backgroundColor:coloresAños[i%coloresAños.length]+'22',
+    fill:false,tension:.3,pointRadius:3,borderWidth:2,pointHoverRadius:5
+  }));
+  document.getElementById('leg-comp').innerHTML=años.map((y,i)=>`<span><span class="legend-dot" style="background:${coloresAños[i%coloresAños.length]}"></span>${y}</span>`).join('');
+  charts.comp=new Chart(document.getElementById('c-comp'),{
+    type:'line',
+    data:{labels:MES,datasets:compDatasets},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{stepSize:1,font:{size:10}},beginAtZero:true}},
+      onClick:(e,els)=>{
+        if(!els.length)return;
+        const y=años[els[0].datasetIndex];
+        const mi=els[0].index;
+        activarDetalle(y+' — '+MES[mi],r=>getYear(r)===y&&r._date&&r._date.getMonth()===mi, data.slice());
+      }
+    }
+  });
+
+  // Antigüedad al salir
+  const antigRanges=[{label:'<1 año',min:0,max:1},{label:'1–2 años',min:1,max:2},{label:'3–5 años',min:3,max:5},{label:'6–10 años',min:6,max:10},{label:'+10 años',min:11,max:999}];
+  const antigCounts=antigRanges.map(r=>data.filter(d=>{const a=diffYears(d._ingreso,d._date);return a!==null&&a>=r.min&&a<r.max+(r.max===999?0:1);}).length);
+  const antigTotal=antigCounts.reduce((a,b)=>a+b,0)||1;
+  const antigPcts=antigCounts.map(v=>+(v/antigTotal*100).toFixed(1));
+  document.getElementById('antig-container').innerHTML='<div style="position:relative;width:100%;height:180px;"><canvas id="c-antig"></canvas></div>';
+  charts.antig=new Chart(document.getElementById('c-antig'),{
+    type:'bar',
+    plugins:[{id:'pctLabels',afterDatasetsDraw(chart){const{ctx}=chart;chart.getDatasetMeta(0).data.forEach((bar,i)=>{const v=antigPcts[i];if(!v)return;ctx.save();ctx.font='500 10px sans-serif';ctx.fillStyle='#64748B';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(v+'%',bar.x,bar.y-2);ctx.restore();});}}],
+    data:{labels:antigRanges.map(r=>r.label),datasets:[{data:antigCounts,backgroundColor:'#534AB7',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${antigCounts[ctx.dataIndex]} personas (${antigPcts[ctx.dataIndex]}%)`}}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{stepSize:1,font:{size:10}},beginAtZero:true}},
+      onClick:(e,els)=>{
+        if(!els.length)return;
+        const rng=antigRanges[els[0].index];
+        activarDetalle('Antigüedad: '+rng.label,r=>{const a=diffYears(r._ingreso,r._date);return a!==null&&a>=rng.min&&a<rng.max+(rng.max===999?0:1);}, data.slice());
+      }
+    }
+  });
+
+  // Edad al salir
+  const edadRanges=[{label:'<25',min:0,max:25},{label:'25–34',min:25,max:34},{label:'35–44',min:35,max:44},{label:'45–54',min:45,max:54},{label:'55+',min:55,max:999}];
+  const edadCounts=edadRanges.map(r=>data.filter(d=>{const e=diffYears(d._nacimiento,d._date);return e!==null&&Math.floor(e)>=r.min&&Math.floor(e)<=r.max;}).length);
+  const edadTotal=edadCounts.reduce((a,b)=>a+b,0)||1;
+  const edadPcts=edadCounts.map(v=>+(v/edadTotal*100).toFixed(1));
+  document.getElementById('edad-container').innerHTML='<div style="position:relative;width:100%;height:180px;"><canvas id="c-edad"></canvas></div>';
+  charts.edad=new Chart(document.getElementById('c-edad'),{
+    type:'bar',
+    plugins:[{id:'pctLabels2',afterDatasetsDraw(chart){const{ctx}=chart;chart.getDatasetMeta(0).data.forEach((bar,i)=>{const v=edadPcts[i];if(!v)return;ctx.save();ctx.font='500 10px sans-serif';ctx.fillStyle='#64748B';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(v+'%',bar.x,bar.y-2);ctx.restore();});}}],
+    data:{labels:edadRanges.map(r=>r.label),datasets:[{data:edadCounts,backgroundColor:'#1D9E75',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${edadCounts[ctx.dataIndex]} personas (${edadPcts[ctx.dataIndex]}%)`}}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{stepSize:1,font:{size:10}},beginAtZero:true}},
+      onClick:(e,els)=>{
+        if(!els.length)return;
+        const rng=edadRanges[els[0].index];
+        activarDetalle('Edad: '+rng.label,r=>{const e=diffYears(r._nacimiento,r._date);return e!==null&&Math.floor(e)>=rng.min&&Math.floor(e)<=rng.max;}, data.slice());
+      }
+    }
+  });
+
+  // ── Rotación 90 días ──
+  if(document.getElementById('rot90-container')){
+    const rot90Snap=data.slice();
+    const rot90Total=rot90Snap.filter(r=>{const d=diffDays(r._ingreso,r._date);return d!==null&&d<=90;});
+    const rot90Vol=rot90Total.filter(r=>r.tipo==='Voluntaria').length;
+    const rot90For=rot90Total.filter(r=>r.tipo==='Forzada').length;
+    document.getElementById('rot90-container').innerHTML=`
+      <div style="font-size:11px;color:#aaa;margin-bottom:4px;">Colaboradores que salieron dentro de sus primeros 90 días — haz clic para ver el detalle</div>
+      <div class="rot90-grid">
+        <div class="rot90-item" style="cursor:pointer;" data-rot90="total">
+          <div class="rot90-val" style="color:#1a1a1a;">${rot90Total.length}</div><div class="rot90-label">Total</div>
+        </div>
+        <div class="rot90-item" style="cursor:pointer;" data-rot90="vol">
+          <div class="rot90-val" style="color:#1D9E75;">${rot90Vol}</div><div class="rot90-label">Voluntaria</div>
+        </div>
+        <div class="rot90-item" style="cursor:pointer;" data-rot90="for">
+          <div class="rot90-val" style="color:#D85A30;">${rot90For}</div><div class="rot90-label">Forzada</div>
+        </div>
+      </div>`;
+
+    document.querySelector('[data-rot90="total"]').addEventListener('click',()=>activarDetalle('90 días: Total',r=>{const d=diffDays(r._ingreso,r._date);return d!==null&&d<=90;},rot90Snap));
+    document.querySelector('[data-rot90="vol"]').addEventListener('click',()=>activarDetalle('90 días: Voluntaria',r=>{const d=diffDays(r._ingreso,r._date);return d!==null&&d<=90&&r.tipo==='Voluntaria';},rot90Snap));
+    document.querySelector('[data-rot90="for"]').addEventListener('click',()=>activarDetalle('90 días: Forzada',r=>{const d=diffDays(r._ingreso,r._date);return d!==null&&d<=90&&r.tipo==='Forzada';},rot90Snap));
+  }
+
+  // ── Costo estimado eliminado ──
+
+  // ── Riesgo de fuga por dirección ──
+  if(document.getElementById('riesgo-container')){
+    const DIRS_EXCLUIR_RIESGO=['Planeación Estrategica','Planeacion Estrategica'];
+    const dirsExtraExcluir=document.getElementById('f-anio').value&&DIRS_POR_AÑO[document.getElementById('f-anio').value]?DIRS_POR_AÑO[document.getElementById('f-anio').value]:[];
+    const DIRS_ORDER_R=['Transformación y Digital','Relaciones Humanas','Administración y Finanzas','Auditoría','Fiscal','Jurídico'].filter(d=>!dirsExtraExcluir.includes(d)&&!DIRS_EXCLUIR_RIESGO.includes(d));
+    const data2026=data.filter(r=>r._date&&r._date.getFullYear()===2026);
+
+    const riesgoData=DIRS_ORDER_R.map(d=>{
+      const vols=data2026.filter(r=>r.dir===d&&r.tipo==='Voluntaria');
+      const vol=vols.length;
+      const p1=vols.filter(r=>r._date&&r._date.getMonth()<3).length;
+      const p2=vols.filter(r=>r._date&&r._date.getMonth()>=3).length;
+      const perfil=vols.filter(r=>['5','7','8','9'].includes(r.nb)).length;
+      const rot90=vols.filter(r=>{const dd=diffDays(r._ingreso,r._date);return dd!==null&&dd<=90;}).length;
+      const antigArr=vols.map(r=>diffYears(r._ingreso,r._date)).filter(v=>v!==null);
+      const antigProm=antigArr.length?antigArr.reduce((a,b)=>a+b,0)/antigArr.length:null;
+      let tendencia='—';
+      if(vol>=2){tendencia=p2>p1?'↑':p2<p1?'↓':'→';}
+      let score=0;
+      if(vol>=2) score++;
+      if(antigProm!==null&&antigProm<3) score++;
+      if(perfil>=1) score++;
+      if(rot90>=1) score++;
+      if(tendencia==='↑') score++;
+      let riesgo='Sin señal';
+      if(vol===0) riesgo='Sin señal';
+      else if(score>=3) riesgo='Alto';
+      else if(score>=2) riesgo='Medio';
+      else riesgo='Bajo';
+      return{dir:d,vol,antigProm,rot90,perfil,tendencia,riesgo};
+    }).sort((a,b)=>{
+      const ord={'Alto':0,'Medio':1,'Bajo':2,'Sin señal':3};
+      return ord[a.riesgo]-ord[b.riesgo]||b.vol-a.vol;
+    });
+
+    const maxVol=Math.max(...riesgoData.map(r=>r.vol),1);
+    document.getElementById('riesgo-container').innerHTML=`
+      <div style="font-size:11px;color:#aaa;margin-bottom:8px;">
+        Bajas voluntarias 2026 · <strong style="color:#555;">Tendencia:</strong> ene–mar vs abr–jul ·
+        <strong style="color:#555;">Riesgo:</strong> volumen, antigüedad, perfil 9box, rotación temprana y tendencia
+      </div>
+      <table class="riesgo-table">
+        <thead><tr>
+          <th>Dirección</th><th>Vol. 2026</th><th>Antigüedad prom.</th>
+          <th>&lt;90 días</th><th>Perfil crítico<br><small style="font-weight:400;color:#bbb;">9box 5,7,8,9</small></th>
+          <th>Tendencia</th><th>Riesgo</th>
+        </tr></thead>
+        <tbody>${riesgoData.map((r,ri)=>{
+          const tendColor=r.tendencia==='↑'?'#DC2626':r.tendencia==='↓'?'#16A34A':r.tendencia==='→'?'#D97706':'#aaa';
+          const riesgoClass=r.riesgo==='Alto'?'riesgo-alto':r.riesgo==='Medio'?'riesgo-medio':r.riesgo==='Bajo'?'riesgo-bajo':'';
+          return`<tr>
+            <td style="font-weight:500;cursor:pointer;" data-ri="${ri}" data-col="dir">${r.dir}</td>
+            <td style="cursor:pointer;" data-ri="${ri}" data-col="vol">${r.vol>0?`<span style="display:inline-block;width:${Math.round(r.vol/maxVol*60)}px;height:6px;background:#534AB7;border-radius:3px;vertical-align:middle;margin-right:6px;"></span>`:''} ${r.vol}</td>
+            <td>${r.antigProm!==null?r.antigProm.toFixed(1)+' años':'—'}</td>
+            <td style="cursor:${r.rot90>0?'pointer':'default'};" data-ri="${ri}" data-col="rot90">${r.rot90>0?`<span style="color:#DC2626;font-weight:600;">${r.rot90}</span>`:'0'}</td>
+            <td style="cursor:${r.perfil>0?'pointer':'default'};" data-ri="${ri}" data-col="perfil">${r.perfil>0?`<span style="color:#534AB7;font-weight:600;">${r.perfil}</span>`:'0'}</td>
+            <td style="font-size:16px;font-weight:600;color:${tendColor};">${r.tendencia}</td>
+            <td>${r.riesgo!=='Sin señal'?`<span class="riesgo-badge ${riesgoClass}">${r.riesgo}</span>`:`<span style="color:#ccc;font-size:11px;">Sin señal</span>`}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+
+    document.querySelectorAll('#riesgo-container td[data-col]').forEach(td=>{
+      td.addEventListener('click',()=>{
+        const i=+td.dataset.ri;
+        const col=td.dataset.col;
+        const d=riesgoData[i].dir;
+        if(col==='dir'||col==='vol'){
+          if(riesgoData[i].vol>0) activarDetalle(d+' — voluntarias 2026',r=>r.dir===d&&r.tipo==='Voluntaria'&&r._date&&r._date.getFullYear()===2026);
+        } else if(col==='rot90'&&riesgoData[i].rot90>0){
+          activarDetalle(d+' — <90 días',r=>r.dir===d&&r.tipo==='Voluntaria'&&r._date&&r._date.getFullYear()===2026&&diffDays(r._ingreso,r._date)!==null&&diffDays(r._ingreso,r._date)<=90);
+        } else if(col==='perfil'&&riesgoData[i].perfil>0){
+          activarDetalle(d+' — Perfil crítico',r=>r.dir===d&&r.tipo==='Voluntaria'&&r._date&&r._date.getFullYear()===2026&&['5','7','8','9'].includes(r.nb));
+        }
+      });
+    });
+  }
+
+  renderTabla(getDetalleData());
+}
+
+
+
+// Cargar datos automáticamente al abrir
+window.addEventListener('DOMContentLoaded', ()=>{ buildCharts(); cargarDatosHardcoded(); });
+</script>
+</body>
+</html>
